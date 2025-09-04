@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { getMe, getMailTop, getUpcomingEvents } from "@/services/graph";
 import type { GraphMailItem, GraphCalendarEvent, GraphUser } from "@/types";
@@ -15,6 +15,7 @@ export default function Home() {
   const [me, setMe] = useState<GraphUser | null>(null);
   const [mail, setMail] = useState<GraphMailItem[]>([]);
   const [events, setEvents] = useState<GraphCalendarEvent[]>([]);
+  const BYPASS = (process.env.NEXT_PUBLIC_BYPASS_AUTH ?? "").toLowerCase() === "true";
 
   async function handleSignIn() {
     await instance.loginPopup();
@@ -26,7 +27,19 @@ export default function Home() {
     setEvents(eventResp.value ?? eventResp);
   }
 
-  if (!isAuthenticated) {
+  useEffect(() => {
+    if (!BYPASS) return;
+    (async () => {
+      const meResp = await getMe();
+      const mailResp = await getMailTop(8);
+      const eventResp = await getUpcomingEvents(8);
+      setMe(meResp);
+      setMail(mailResp.value ?? mailResp);
+      setEvents(eventResp.value ?? eventResp);
+    })();
+  }, [BYPASS]);
+
+  if (!BYPASS && !isAuthenticated) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="space-y-4 text-center">
