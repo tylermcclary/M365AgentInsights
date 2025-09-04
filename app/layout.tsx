@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { MsalProvider } from "@azure/msal-react";
-import { msalInstance } from "@/lib/msal";
+import { MSALClientProvider } from "@/components/providers/msal-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <MsalProvider instance={msalInstance}>{children}</MsalProvider>
+        <MSALClientProvider>{children}</MSALClientProvider>
       </body>
     </html>
   );
