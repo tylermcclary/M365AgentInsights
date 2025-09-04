@@ -1,6 +1,6 @@
 "use client";
 
-import { PublicClientApplication, type Configuration, type LogLevel } from "@azure/msal-browser";
+import { PublicClientApplication, type Configuration, LogLevel } from "@azure/msal-browser";
 
 const clientId = process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID ?? "";
 const authority = process.env.NEXT_PUBLIC_AZURE_AD_AUTHORITY ?? (process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID
