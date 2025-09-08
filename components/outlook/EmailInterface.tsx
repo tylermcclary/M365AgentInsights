@@ -309,6 +309,15 @@ export default function EmailInterface() {
             }}
             defaultOpen={true}
             onCollapse={() => setAssistantOpen(false)}
+            communications={filtered.map(e => ({
+              id: e.id,
+              type: "email",
+              from: e.senderEmail ?? e.sender,
+              subject: e.subject,
+              body: e.body,
+              timestamp: e.timestamp,
+            }))}
+            clientEmail={selected?.senderEmail ?? selected?.sender}
           />
         </div>
 

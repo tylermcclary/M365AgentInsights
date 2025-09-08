@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { analyzeClientCommunications, type ClientInsights, type Communication } from "@/services/ai-insights";
 
 type EmailContext = {
   id?: string;
@@ -36,10 +37,14 @@ export default function AssistantPanel({
   email,
   defaultOpen = true,
   onCollapse,
+  communications,
+  clientEmail,
 }: {
   email?: EmailContext | null;
   defaultOpen?: boolean;
   onCollapse?: () => void;
+  communications?: Communication[];
+  clientEmail?: string;
 }) {
   const [open, setOpen] = useState<boolean>(defaultOpen);
   const [loading, setLoading] = useState<boolean>(false);
@@ -51,41 +56,27 @@ export default function AssistantPanel({
     highlights: false,
   });
 
-  const [insights, setInsights] = useState<{
-    clientSummary?: string;
-    communicationHistory?: { when: string; type: string; subject: string }[];
-    lastInteraction?: string;
-    recommendedActions?: string[];
-    highlights?: { label: string; value: string }[];
-  }>({});
+  const [insights, setInsights] = useState<ClientInsights | null>(null);
 
   const clientDisplay = useMemo(() => email?.sender ?? "Client", [email?.sender]);
 
   async function analyze() {
     setLoading(true);
-    // Simulate analysis latency; in real app call an AI service with Graph context
-    await new Promise(r => setTimeout(r, 900));
-    const synthesized = {
-      clientSummary:
-        `${clientDisplay} has engaged recently regarding "${email?.subject ?? "(no subject)"}". Tone appears professional and concise.`,
-      communicationHistory: [
-        { when: new Date().toLocaleString(), type: "Email", subject: email?.subject ?? "(no subject)" },
-        { when: new Date(Date.now() - 2 * 24 * 3600 * 1000).toLocaleDateString(), type: "Meeting", subject: "Quarterly review" },
-      ],
-      lastInteraction:
-        `Last message received ${email?.receivedAt ? new Date(email.receivedAt).toLocaleString() : "recently"}. Summary: ${(email?.body ?? "").slice(0, 140)}...`,
-      recommendedActions: [
-        "Send follow-up with proposed meeting times",
-        "Summarize portfolio changes and request confirmation",
-        "Add task to review rebalancing impacts",
-      ],
-      highlights: [
-        { label: "Primary Goal", value: "Retirement income stability" },
-        { label: "Risk Preference", value: "Moderate" },
-        { label: "Upcoming Event", value: "Annual review in 2 weeks" },
-      ],
-    } as const;
-    setInsights(synthesized);
+    await new Promise(r => setTimeout(r, 300));
+    const comms: Communication[] = (communications && communications.length > 0)
+      ? communications
+      : email
+        ? [{
+            id: email.id ?? "selected",
+            type: "email",
+            from: email.senderEmail ?? email.sender,
+            subject: email.subject,
+            body: email.body,
+            timestamp: email.receivedAt ?? new Date().toISOString(),
+          }]
+        : [];
+    const insightsResp = analyzeClientCommunications(clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), comms);
+    setInsights(insightsResp);
     setLoading(false);
   }
 
@@ -137,9 +128,10 @@ export default function AssistantPanel({
             onToggle={() => toggleSection("summary")}
             loading={loading}
           >
-            <p className="text-sm">
-              {insights.clientSummary ?? "Insights will appear here after analysis."}
-            </p>
+            <p className="text-sm">{insights?.summary.text ?? "Insights will appear here after analysis."}</p>
+            {insights?.summary.topics?.length ? (
+              <div className="text-xs text-neutral-500 mt-2">Topics: {insights.summary.topics.join(", ")}</div>
+            ) : null}
           </Section>
 
           {/* Communication History */}
@@ -150,18 +142,7 @@ export default function AssistantPanel({
             onToggle={() => toggleSection("history")}
             loading={loading}
           >
-            <ul className="space-y-2">
-              {(insights.communicationHistory ?? []).map((i, idx) => (
-                <li key={idx} className="text-sm">
-                  <span className="text-neutral-500 mr-2">{i.when}</span>
-                  <span className="font-medium mr-2">{i.type}</span>
-                  <span className="text-neutral-700">{i.subject}</span>
-                </li>
-              ))}
-              {(!insights.communicationHistory || insights.communicationHistory.length === 0) && (
-                <li className="text-sm text-neutral-500">No items yet.</li>
-              )}
-            </ul>
+            <div className="text-sm text-neutral-500">Uses current folder emails for context.</div>
           </Section>
 
           {/* Last Interaction Summary */}
@@ -172,7 +153,11 @@ export default function AssistantPanel({
             onToggle={() => toggleSection("lastInteraction")}
             loading={loading}
           >
-            <p className="text-sm">{insights.lastInteraction ?? "Awaiting analysis."}</p>
+            <p className="text-sm">
+              {insights?.lastInteraction
+                ? `${new Date(insights.lastInteraction.when).toLocaleString()} • ${insights.lastInteraction.type} • ${insights.lastInteraction.subject ?? "(no subject)"}`
+                : "Awaiting analysis."}
+            </p>
           </Section>
 
           {/* Recommended Next Actions */}
@@ -184,10 +169,14 @@ export default function AssistantPanel({
             loading={loading}
           >
             <ul className="list-disc pl-5 space-y-1">
-              {(insights.recommendedActions ?? []).map((a, idx) => (
-                <li key={idx} className="text-sm">{a}</li>
+              {(insights?.recommendedActions ?? []).map(a => (
+                <li key={a.id} className="text-sm">
+                  <span className="font-medium">{a.title}</span>
+                  <span className="text-neutral-500"> — {a.rationale}</span>
+                  {a.dueDate ? <span className="ml-2 text-neutral-400">(Due {a.dueDate})</span> : null}
+                </li>
               ))}
-              {(!insights.recommendedActions || insights.recommendedActions.length === 0) && (
+              {(!insights?.recommendedActions || insights.recommendedActions.length === 0) && (
                 <li className="text-sm text-neutral-500">No suggestions yet.</li>
               )}
             </ul>
@@ -202,13 +191,13 @@ export default function AssistantPanel({
             loading={loading}
           >
             <dl className="grid grid-cols-1 gap-2">
-              {(insights.highlights ?? []).map((h, idx) => (
+              {(insights?.highlights ?? []).map((h, idx) => (
                 <div key={idx} className="flex items-start gap-2 text-sm">
                   <dt className="w-36 shrink-0 text-neutral-500">{h.label}</dt>
                   <dd className="text-neutral-800">{h.value}</dd>
                 </div>
               ))}
-              {(!insights.highlights || insights.highlights.length === 0) && (
+              {(!insights?.highlights || insights.highlights.length === 0) && (
                 <div className="text-sm text-neutral-500">No highlights yet.</div>
               )}
             </dl>
