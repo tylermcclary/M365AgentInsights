@@ -80,6 +80,17 @@ export default function AssistantPanel({
     setLoading(false);
   }
 
+  const history = useMemo(() => {
+    const base: Communication[] = communications ?? [];
+    const key = (clientEmail ?? email?.senderEmail ?? email?.sender ?? "").toLowerCase();
+    const filtered = key ? base.filter(c => (c.from ?? "").toLowerCase().includes(key)) : base;
+    return filtered
+      .slice()
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10)
+      .map(i => ({ when: new Date(i.timestamp).toLocaleString(), type: i.type, subject: i.subject ?? "(no subject)" }));
+  }, [communications, clientEmail, email?.senderEmail, email?.sender]);
+
   function toggleSection(key: SectionKey) {
     setSectionsOpen(prev => ({ ...prev, [key]: !prev[key] }));
   }
@@ -142,7 +153,16 @@ export default function AssistantPanel({
             onToggle={() => toggleSection("history")}
             loading={loading}
           >
-            <div className="text-sm text-neutral-500">Uses current folder emails for context.</div>
+            <ul className="space-y-2">
+              {history.map((i, idx) => (
+                <li key={idx} className="text-sm">
+                  <span className="text-neutral-500 mr-2">{i.when}</span>
+                  <span className="font-medium mr-2">{i.type}</span>
+                  <span className="text-neutral-700">{i.subject}</span>
+                </li>
+              ))}
+              {history.length === 0 && <li className="text-sm text-neutral-500">No items found for this contact.</li>}
+            </ul>
           </Section>
 
           {/* Last Interaction Summary */}
