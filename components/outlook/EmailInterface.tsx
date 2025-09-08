@@ -19,6 +19,7 @@ import {
   PanelRightClose,
 } from "lucide-react";
 import AssistantPanel from "@/components/ai-agent/AssistantPanel";
+import { clients, getCommunicationsByClient } from "@/data/sampleData";
 
 type Email = {
   id: string;
@@ -109,6 +110,35 @@ export default function EmailInterface() {
   const [isComposeOpen, setComposeOpen] = useState(false);
   const [compose, setCompose] = useState({ to: "", subject: "", body: "" });
   const [assistantOpen, setAssistantOpen] = useState(true);
+  const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id ?? "");
+
+  // Load emails from sample data for the selected client (Inbox only for POC)
+  function loadClientEmails(clientId: string) {
+    const comms = getCommunicationsByClient(clientId);
+    const mapped: Email[] = comms.emails.map(e => ({
+      id: e.id,
+      sender: clients.find(c => c.id === clientId)?.name ?? "Client",
+      senderEmail: clients.find(c => c.id === clientId)?.email,
+      subject: e.subject,
+      preview: e.body.slice(0, 120),
+      timestamp: e.receivedDateTime,
+      body: e.body,
+      folder: "Inbox",
+    }));
+    // Keep some existing Sent/Drafts examples from local sample for variety
+    const extras = sampleEmails.filter(x => x.folder !== "Inbox");
+    const all = [...mapped, ...extras].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    setEmails(all);
+    setSelectedId(all.find(e => e.folder === "Inbox")?.id ?? all[0]?.id ?? null);
+  }
+
+  // Initialize from first client
+  useMemo(() => {
+    if (selectedClientId) {
+      loadClientEmails(selectedClientId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClientId]);
 
   const filtered = useMemo(() => {
     const byFolder = emails.filter(e => e.folder === activeFolder);
@@ -160,6 +190,20 @@ export default function EmailInterface() {
           >
             <Plus className="h-4 w-4" /> New
           </button>
+        </div>
+        <div className="p-2 border-b">
+          <label className="block text-[11px] text-neutral-500 mb-1">Client</label>
+          <select
+            value={selectedClientId}
+            onChange={e => setSelectedClientId(e.target.value)}
+            className="w-full text-sm border rounded px-2 py-1 bg-white dark:bg-neutral-950"
+          >
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
           {folders.map(f => (
