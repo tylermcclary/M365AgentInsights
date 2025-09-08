@@ -8,6 +8,7 @@ import { MailList } from "@/components/outlook/MailList";
 import { CalendarList } from "@/components/outlook/CalendarList";
 import { InsightsPanel } from "@/components/ai-agent/InsightsPanel";
 import { generateInsightsFromGraph } from "@/services/ai-insights";
+import EmailInterface from "@/components/outlook/EmailInterface";
 
 export default function Home() {
   const isAuthenticated = useIsAuthenticated();
@@ -38,6 +39,14 @@ export default function Home() {
       setEvents(eventResp.value ?? eventResp);
     })();
   }, [BYPASS]);
+
+  if (BYPASS) {
+    return (
+      <main className="max-w-7xl mx-auto p-4">
+        <EmailInterface />
+      </main>
+    );
+  }
 
   if (!BYPASS && !isAuthenticated) {
     return (
