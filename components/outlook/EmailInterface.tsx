@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Inbox,
   Send,
@@ -15,7 +15,10 @@ import {
   Reply,
   ReplyAll,
   Forward,
+  PanelRightOpen,
+  PanelRightClose,
 } from "lucide-react";
+import AssistantPanel from "@/components/ai-agent/AssistantPanel";
 
 type Email = {
   id: string;
@@ -83,7 +86,7 @@ const sampleEmails: Email[] = [
   },
 ];
 
-const folders: { key: Email["folder"]; label: string; icon: JSX.Element }[] = [
+const folders: { key: Email["folder"]; label: string; icon: ReactNode }[] = [
   { key: "Inbox", label: "Inbox", icon: <Inbox className="h-4 w-4" /> },
   { key: "Sent", label: "Sent", icon: <Send className="h-4 w-4" /> },
   { key: "Drafts", label: "Drafts", icon: <FileText className="h-4 w-4" /> },
@@ -105,6 +108,7 @@ export default function EmailInterface() {
   const [selectedId, setSelectedId] = useState<string | null>(emails.find(e => e.folder === "Inbox")?.id ?? null);
   const [isComposeOpen, setComposeOpen] = useState(false);
   const [compose, setCompose] = useState({ to: "", subject: "", body: "" });
+  const [assistantOpen, setAssistantOpen] = useState(true);
 
   const filtered = useMemo(() => {
     const byFolder = emails.filter(e => e.folder === activeFolder);
@@ -238,7 +242,7 @@ export default function EmailInterface() {
         </div>
 
         {/* Reading pane */}
-        <div className="hidden md:flex md:flex-col">
+        <div className="hidden md:flex md:flex-col relative">
           {!selected ? (
             <div className="flex-1 grid place-items-center text-sm text-neutral-500">Select a message</div>
           ) : (
@@ -257,6 +261,14 @@ export default function EmailInterface() {
                   </button>
                   <button className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border hover:bg-neutral-50">
                     <Forward className="h-4 w-4" /> Forward
+                  </button>
+                  <button
+                    onClick={() => setAssistantOpen(o => !o)}
+                    className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border hover:bg-neutral-50"
+                    title="Toggle AI Assistant"
+                  >
+                    {assistantOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                    AI Assistant
                   </button>
                 </div>
               </div>
@@ -278,6 +290,25 @@ export default function EmailInterface() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Assistant Panel (right overlay) */}
+        <div
+          className={`hidden md:block absolute right-0 top-0 h-full w-[360px] border-l bg-white dark:bg-neutral-950 shadow-xl transition-transform duration-200 ease-out ${
+            assistantOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <AssistantPanel
+            email={{
+              id: selected?.id,
+              sender: selected?.sender,
+              senderEmail: selected?.senderEmail,
+              subject: selected?.subject,
+              body: selected?.body,
+              receivedAt: selected?.timestamp,
+            }}
+            defaultOpen={true}
+          />
         </div>
 
         {/* Mobile reading pane */}
