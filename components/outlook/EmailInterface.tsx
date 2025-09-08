@@ -22,6 +22,9 @@ import AssistantPanel from "@/components/ai-agent/AssistantPanel";
 import { clients, getCommunicationsByClient } from "@/data/sampleData";
 import ContextTrigger from "@/components/ai-agent/ContextTrigger";
 import { useEmailContext } from "@/hooks/useEmailContext";
+import Button from "@/components/ui/Button";
+import Tooltip from "@/components/ui/Tooltip";
+import NotificationToast, { type Toast } from "@/components/ui/NotificationToast";
 
 type Email = {
   id: string;
@@ -113,6 +116,7 @@ export default function EmailInterface() {
   const [compose, setCompose] = useState({ to: "", subject: "", body: "" });
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id ?? "");
+  const [toast, setToast] = useState<Toast | null>(null);
 
   // Load emails from sample data for the selected client (Inbox only for POC)
   function loadClientEmails(clientId: string) {
@@ -186,6 +190,7 @@ export default function EmailInterface() {
     setActiveFolder("Sent");
     setSelectedId(sent.id);
     setComposeOpen(false);
+    setToast({ id: "sent", type: "success", message: "Message added to Sent", durationMs: 2500 });
   }
 
   return (
@@ -194,12 +199,7 @@ export default function EmailInterface() {
       <aside className="hidden md:flex md:w-56 shrink-0 flex-col border-r bg-neutral-50 dark:bg-neutral-900">
         <div className="flex items-center justify-between p-3 border-b">
           <div className="text-sm font-semibold">Mail</div>
-          <button
-            onClick={openCompose}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" /> New
-          </button>
+          <Button size="sm" onClick={openCompose} leftIcon={<Plus className="h-4 w-4" />}>New</Button>
         </div>
         <div className="p-2 border-b">
           <label className="block text-[11px] text-neutral-500 mb-1">Client</label>
@@ -307,23 +307,14 @@ export default function EmailInterface() {
                   <h2 className="text-lg font-semibold">{selected.subject}</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border hover:bg-neutral-50">
-                    <Reply className="h-4 w-4" /> Reply
-                  </button>
-                  <button className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border hover:bg-neutral-50">
-                    <ReplyAll className="h-4 w-4" /> Reply all
-                  </button>
-                  <button className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border hover:bg-neutral-50">
-                    <Forward className="h-4 w-4" /> Forward
-                  </button>
-                  <button
-                    onClick={() => setAssistantOpen(o => !o)}
-                    className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border hover:bg-neutral-50"
-                    title="Toggle AI Assistant"
-                  >
-                    {assistantOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                    AI Assistant
-                  </button>
+                  <Button variant="secondary" size="sm" leftIcon={<Reply className="h-4 w-4" />}>Reply</Button>
+                  <Button variant="secondary" size="sm" leftIcon={<ReplyAll className="h-4 w-4" />}>Reply all</Button>
+                  <Button variant="secondary" size="sm" leftIcon={<Forward className="h-4 w-4" />}>Forward</Button>
+                  <Tooltip content="Show or hide the AI Assistant">
+                    <span>
+                      <Button variant="secondary" size="sm" onClick={() => setAssistantOpen(o => !o)} leftIcon={assistantOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}>AI Assistant</Button>
+                    </span>
+                  </Tooltip>
                 </div>
               </div>
               <div className="px-4 py-3 text-sm whitespace-pre-wrap">

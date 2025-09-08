@@ -5,6 +5,9 @@ import { clients, getCommunicationsByClient, type SampleClient } from "@/data/sa
 import { analyzeClientCommunications, type ClientInsights, type Communication, suggestNextBestActions } from "@/services/ai-insights";
 import { triggerAnalysisForEmail } from "@/services/contextAnalyzer";
 import { Loader2, Play, BrainCircuit, ListChecks, Timer, Database } from "lucide-react";
+import Button from "@/components/ui/Button";
+import Tooltip from "@/components/ui/Tooltip";
+import NotificationToast, { type Toast } from "@/components/ui/NotificationToast";
 
 type Scenario = "Consultation" | "Investment Discussion" | "Market Update" | "Life Event" | "Follow-up";
 
@@ -16,6 +19,7 @@ export default function DemoControlPanel() {
   const [insights, setInsights] = useState<ClientInsights | null>(null);
   const [timeline, setTimeline] = useState<Communication[]>([]);
   const [actions, setActions] = useState<ReturnType<typeof suggestNextBestActions>>([]);
+  const [toast, setToast] = useState<Toast | null>(null);
 
   const selectedClient: SampleClient | undefined = useMemo(
     () => clients.find(c => c.id === selectedClientId),
@@ -51,6 +55,7 @@ export default function DemoControlPanel() {
       const ai = analyzeClientCommunications(selectedClient.email, comms);
       setInsights(ai);
       log("AI: insights generated for simulated email context");
+      setToast({ id: "sim", type: "success", message: "Simulated email processed" });
     }
     setProcessing(false);
   }
@@ -65,6 +70,7 @@ export default function DemoControlPanel() {
     const ai = analyzeClientCommunications(selectedClient.email, comms);
     setInsights(ai);
     log("AI: comprehensive client analysis ready");
+    setToast({ id: "insights", type: "success", message: "Client insights ready" });
     setProcessing(false);
   }
 
@@ -78,6 +84,7 @@ export default function DemoControlPanel() {
     await new Promise(r => setTimeout(r, 150));
     log("AI: proposed next actions available");
     setProcessing(false);
+    setToast({ id: "nba", type: "success", message: "Next actions generated" });
   }
 
   function showTimeline() {
@@ -121,18 +128,18 @@ export default function DemoControlPanel() {
         <div className="space-y-2">
           <label className="block text-[11px] text-neutral-500">Actions</label>
           <div className="flex flex-wrap gap-2">
-            <button onClick={simulateIncomingEmail} disabled={processing} className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded border hover:bg-neutral-50">
-              <Play className="h-4 w-4" /> Simulate incoming email
-            </button>
-            <button onClick={viewClientInsights} disabled={processing} className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded border hover:bg-neutral-50">
-              <BrainCircuit className="h-4 w-4" /> View client insights
-            </button>
-            <button onClick={generateNextActions} disabled={processing} className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded border hover:bg-neutral-50">
-              <ListChecks className="h-4 w-4" /> Generate next actions
-            </button>
-            <button onClick={showTimeline} className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded border hover:bg-neutral-50">
-              <Timer className="h-4 w-4" /> Show timeline
-            </button>
+            <Tooltip content="Adds a sample email and runs insights">
+              <span><Button variant="secondary" size="sm" onClick={simulateIncomingEmail} disabled={processing} leftIcon={<Play className="h-4 w-4" />}>Simulate incoming email</Button></span>
+            </Tooltip>
+            <Tooltip content="Loads historical data and runs full analysis">
+              <span><Button variant="secondary" size="sm" onClick={viewClientInsights} disabled={processing} leftIcon={<BrainCircuit className="h-4 w-4" />}>View client insights</Button></span>
+            </Tooltip>
+            <Tooltip content="Shows predicted recommendations">
+              <span><Button variant="secondary" size="sm" onClick={generateNextActions} disabled={processing} leftIcon={<ListChecks className="h-4 w-4" />}>Generate next actions</Button></span>
+            </Tooltip>
+            <Tooltip content="Displays interaction history">
+              <span><Button variant="secondary" size="sm" onClick={showTimeline} leftIcon={<Timer className="h-4 w-4" />}>Show timeline</Button></span>
+            </Tooltip>
           </div>
         </div>
       </div>
@@ -195,6 +202,8 @@ export default function DemoControlPanel() {
       <div className="mt-3 text-[11px] text-neutral-500">
         Before/After: Run "Simulate incoming email" first, note insights; then run "Generate next actions" to see how recommendations update based on the same context.
       </div>
+
+      <NotificationToast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );
 }

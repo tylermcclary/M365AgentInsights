@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { analyzeClientCommunications, type ClientInsights, type Communication } from "@/services/ai-insights";
 import { subscribeContext } from "@/services/contextAnalyzer";
+import Tooltip from "@/components/ui/Tooltip";
+import Button from "@/components/ui/Button";
 
 type EmailContext = {
   id?: string;
@@ -133,14 +135,11 @@ export default function AssistantPanel({
           {/* Analyze button */}
           <div className="flex items-center justify-between">
             <div className="text-xs text-neutral-600">Analyze current email context</div>
-            <button
-              onClick={analyze}
-              disabled={loading}
-              className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {loading ? "Analyzing..." : "Run analysis"}
-            </button>
+            <Tooltip content="Runs AI summarization and recommendations based on recent communications">
+              <span>
+                <Button onClick={analyze} disabled={loading} size="sm" leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}>{loading ? "Analyzing..." : "Run analysis"}</Button>
+              </span>
+            </Tooltip>
           </div>
 
           {/* Client Summary */}
