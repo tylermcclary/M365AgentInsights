@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { clients, getCommunicationsByClient, type SampleClient } from "@/data/sampleData";
 import { analyzeClientCommunications, type ClientInsights, type Communication, suggestNextBestActions } from "@/services/ai-insights";
 import { triggerAnalysisForEmail } from "@/services/contextAnalyzer";
-import { Loader2, Play, BrainCircuit, ListChecks, Timeline, Database } from "lucide-react";
+import { Loader2, Play, BrainCircuit, ListChecks, Timer, Database } from "lucide-react";
 
 type Scenario = "Consultation" | "Investment Discussion" | "Market Update" | "Life Event" | "Follow-up";
 
@@ -131,7 +131,7 @@ export default function DemoControlPanel() {
               <ListChecks className="h-4 w-4" /> Generate next actions
             </button>
             <button onClick={showTimeline} className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded border hover:bg-neutral-50">
-              <Timeline className="h-4 w-4" /> Show timeline
+              <Timer className="h-4 w-4" /> Show timeline
             </button>
           </div>
         </div>
