@@ -191,42 +191,151 @@ function createClientThread(client: SampleClient) {
   const events: SampleEvent[] = [];
   const chats: SampleTeamsMessage[] = [];
 
-  const pushes = [
-    {
-      // Initial consultation
-      subject: `Intro consultation with ${client.name}`,
-      body: `Hi ${client.name.split(" ")[0]},\n\nThank you for meeting to discuss your financial goals. Based on your ${
-        client.riskTolerance.toLowerCase()
-      } risk tolerance and portfolio of $${client.portfolioSizeUSD.toLocaleString()}, we will draft an IPS (Investment Policy Statement).\n\nRegards,\nYour Advisor`,
-      offsetDays: 15,
-    },
-    {
-      // Investment discussion
-      subject: `Portfolio allocation proposal`;
-      body: `Hi ${client.name.split(" ")[0]},\n\nAttached is a proposed allocation emphasizing ${client.preferences[0]}. Please review and share feedback.\n\nThanks,\nYour Advisor`,
-      offsetDays: 35,
-    },
-    {
-      // Market update
-      subject: `Market update and implications for your plan`,
-      body: `Hello ${client.name.split(" ")[0]},\n\nRecent market movements suggest ${client.riskTolerance.toLowerCase()} positioning remains appropriate. We'll monitor and rebalance as needed.\n\nBest,\nYour Advisor`,
-      offsetDays: 95,
-    },
-    {
-      // Life event communication
-      subject: `Planning for upcoming life event`;
-      body: `Hi ${client.name.split(" ")[0]},\n\nCongratulations on your upcoming milestone. Let's ensure the plan accounts for it (e.g., ${
-        client.goals[0]
-      }).\n\nRegards,\nYour Advisor`,
-      offsetDays: 150,
-    },
-    {
-      // Follow-up meeting
-      subject: `Follow-up: schedule next review`,
-      body: `Hi ${client.name.split(" ")[0]},\n\nFollowing our last discussion, please pick convenient times for a check-in. We'll review performance and next steps.\n\nThanks,\nYour Advisor`,
-      offsetDays: 210,
-    },
-  ];
+  // Create varied scenarios per client so insights differ meaningfully
+  const variant = Number((client.id.match(/\d+/)?.[0] ?? 1)) % 5; // 0-4
+  const first = client.name.split(" ")[0];
+  const pref0 = client.preferences[0] ?? "diversified ETFs";
+  const goal0 = client.goals[0] ?? "retirement";
+  const pushes =
+    variant === 0
+      ? [
+          {
+            subject: `Kickoff consultation with ${client.name}`,
+            body: `Hi ${first},\n\nGreat meeting you. Given your ${client.riskTolerance.toLowerCase()} risk profile and portfolio of $${client.portfolioSizeUSD.toLocaleString()}, we'll prepare an Investment Policy Statement and outline contribution schedules.\n\nRegards,\nYour Advisor`,
+            offsetDays: 12,
+          },
+          {
+            subject: `Proposal: ${pref0} tilt for ${goal0}`,
+            body: `Hi ${first},\n\nAs discussed, this allocation emphasizes ${pref0} to align with your ${goal0}. Please review the attached draft.\n\nThanks,\nYour Advisor`,
+            offsetDays: 41,
+          },
+          {
+            subject: `Market check-in: rebalancing opportunity`,
+            body: `Hello ${first},\n\nVolatility created a small drift from targets. A modest rebalance may reduce risk while keeping return expectations.\n\nBest,\nYour Advisor`,
+            offsetDays: 84,
+          },
+          {
+            subject: `Planning for upcoming ${goal0}`,
+            body: `Hi ${first},\n\nCongratulations on your upcoming plans around ${goal0}. Let's update cash flows and reserves so you're prepared.\n\nRegards,\nYour Advisor`,
+            offsetDays: 148,
+          },
+          {
+            subject: `Follow-up: pick times for review`,
+            body: `Hi ${first},\n\nPlease select convenient times for our next review. We'll cover performance, taxes, and next steps.\n\nThanks,\nYour Advisor`,
+            offsetDays: 212,
+          },
+        ]
+      : variant === 1
+      ? [
+          {
+            subject: `401(k) rollover discussion`,
+            body: `Hi ${first},\n\nFollowing your transition, we can consolidate your 401(k) and align with your ${client.riskTolerance.toLowerCase()} approach. I'll outline options and tax considerations.`,
+            offsetDays: 10,
+          },
+          {
+            subject: `Estate planning coordination`,
+            body: `Hi ${first},\n\nCoordinating with your attorney to integrate trusts and beneficiary updates. We'll ensure ${goal0} remains on track.`,
+            offsetDays: 63,
+          },
+          {
+            subject: `Life event: home purchase preparation`,
+            body: `Hi ${first},\n\nCongrats on the new home plans. We'll earmark down payment funds and review emergency reserves.`,
+            offsetDays: 121,
+          },
+          {
+            subject: `Tax-loss harvesting opportunity`,
+            body: `Hello ${first},\n\nWe identified positions for harvesting losses without altering risk. This can improve after-tax returns.`,
+            offsetDays: 175,
+          },
+          {
+            subject: `Quarterly touchpoint scheduling`,
+            body: `Hi ${first},\n\nLet's schedule our quarterly call to review progress and next actions.`,
+            offsetDays: 228,
+          },
+        ]
+      : variant === 2
+      ? [
+          {
+            subject: `College savings strategy`,
+            body: `Hi ${first},\n\nLet's map out 529 contributions to meet education goals while managing taxes.`,
+            offsetDays: 18,
+          },
+          {
+            subject: `Investment research: sector rotation`,
+            body: `Hello ${first},\n\nResearch suggests modest rotation toward quality and dividends could fit your preferences.`,
+            offsetDays: 59,
+          },
+          {
+            subject: `Career change and cash flow plan`,
+            body: `Hi ${first},\n\nWith your potential role change, let's revisit savings rate and liquidity needs.`,
+            offsetDays: 132,
+          },
+          {
+            subject: `Vacation home analysis`,
+            body: `Hi ${first},\n\nAttaching affordability analysis and impact on long-term plan.`,
+            offsetDays: 186,
+          },
+          {
+            subject: `Annual review: performance & goals`,
+            body: `Hi ${first},\n\nLet's review performance vs. benchmarks and confirm your priorities for the next 12 months.`,
+            offsetDays: 238,
+          },
+        ]
+      : variant === 3
+      ? [
+          {
+            subject: `Risk review after market drop`,
+            body: `Hello ${first},\n\nGiven recent drawdowns, confirming comfort with volatility and whether we should adjust targets.`,
+            offsetDays: 7,
+          },
+          {
+            subject: `Charitable giving strategy`,
+            body: `Hi ${first},\n\nWe can optimize your donations via donor-advised funds to maximize deductions.`,
+            offsetDays: 77,
+          },
+          {
+            subject: `Healthcare/HSAs update`,
+            body: `Hi ${first},\n\nOpen enrollment approaches—review HSA and coverage choices in context of your plan.`,
+            offsetDays: 137,
+          },
+          {
+            subject: `RSU vesting schedule`,
+            body: `Hi ${first},\n\nYour RSUs vest next quarter—proposing a sell-to-cover plan and diversification.`,
+            offsetDays: 193,
+          },
+          {
+            subject: `Year-end tax planning`,
+            body: `Hi ${first},\n\nLet's finalize tax strategies (harvesting, gifting, retirement contributions) before year end.`,
+            offsetDays: 246,
+          },
+        ]
+      : [
+          {
+            subject: `Retirement income simulation`,
+            body: `Hi ${first},\n\nAttaching scenarios for withdrawal rates and Social Security timing to meet income needs.`,
+            offsetDays: 22,
+          },
+          {
+            subject: `Insurance coverage review`,
+            body: `Hello ${first},\n\nReviewing life/disability/umbrella coverage to ensure appropriate protection.`,
+            offsetDays: 68,
+          },
+          {
+            subject: `Travel plans and budgeting`,
+            body: `Hi ${first},\n\nIncorporating travel budget for the next year into cash flow plan.`,
+            offsetDays: 128,
+          },
+          {
+            subject: `ESG preference questionnaire`,
+            body: `Hi ${first},\n\nSharing updated ESG questionnaire to better reflect your values in the portfolio.`,
+            offsetDays: 182,
+          },
+          {
+            subject: `Mid-year review scheduling`,
+            body: `Hi ${first},\n\nPlease pick a time for mid-year check-in to revisit goals and progress.`,
+            offsetDays: 234,
+          },
+        ];
 
   pushes.forEach((p, i) => {
     const when = addDays(start, p.offsetDays);
@@ -253,14 +362,21 @@ function createClientThread(client: SampleClient) {
         notes: i === 0 ? "Discussed goals and risk" : "Review performance, discuss rebalancing",
       });
     }
-    // Add chats around market/life events
+    // Add chats around market/life events with varied tones
     if (i === 2 || i === 3) {
       chats.push({
         id: `${client.id}-chat-${i + 1}`,
         clientId: client.id,
         from: client.name,
         createdDateTime: formatISO(addDays(when, 1)),
-        content: i === 2 ? "Thanks for the update—agree with staying the course." : "We will confirm dates for the event; appreciate planning ahead.",
+        content:
+          i === 2
+            ? variant % 2 === 0
+              ? "Appreciate the update—comfortable staying the course for now."
+              : "Concerned about volatility. Should we de-risk a bit?"
+            : variant % 2 === 0
+            ? "We'll confirm dates—thank you for proactive planning."
+            : "Can we accelerate planning? Timelines moved up.",
       });
     }
   });
