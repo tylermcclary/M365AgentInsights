@@ -308,6 +308,7 @@ export default function EmailInterface() {
               receivedAt: selected?.timestamp,
             }}
             defaultOpen={true}
+            onCollapse={() => setAssistantOpen(false)}
           />
         </div>
 
