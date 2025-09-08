@@ -37,6 +37,17 @@ export type GraphCalendarEvent = {
   end: GraphDateTimeTimeZone;
   organizer?: GraphOrganizer;
   attendees?: GraphRecipient[];
+  bodyPreview?: string;
 };
+
+export type GraphChatMessage = {
+  id: string;
+  summary?: string;
+  from?: { user?: { displayName?: string; userIdentityType?: string } };
+  createdDateTime: string;
+  body?: { content?: string; contentType?: string };
+};
+
+export type GraphListResponse<T> = { value: T[] };
 
 
