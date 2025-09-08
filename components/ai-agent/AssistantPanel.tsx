@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { analyzeClientCommunications, type ClientInsights, type Communication } from "@/services/ai-insights";
+import { subscribeContext } from "@/services/contextAnalyzer";
 
 type EmailContext = {
   id?: string;
@@ -79,6 +80,17 @@ export default function AssistantPanel({
     setInsights(insightsResp);
     setLoading(false);
   }
+
+  // Listen for context analyzer events to auto-update insights
+  useEffect(() => {
+    const unsub = subscribeContext(e => {
+      const key = (clientEmail ?? email?.senderEmail ?? email?.sender ?? "").toLowerCase();
+      if (!key || e.clientEmail.toLowerCase() === key) {
+        setInsights(e.insights);
+      }
+    });
+    return () => unsub();
+  }, [clientEmail, email?.senderEmail, email?.sender]);
 
   const history = useMemo(() => {
     const base: Communication[] = communications ?? [];

@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import AssistantPanel from "@/components/ai-agent/AssistantPanel";
 import { clients, getCommunicationsByClient } from "@/data/sampleData";
+import ContextTrigger from "@/components/ai-agent/ContextTrigger";
+import { useEmailContext } from "@/hooks/useEmailContext";
 
 type Email = {
   id: string;
@@ -154,6 +156,14 @@ export default function EmailInterface() {
   }, [emails, activeFolder, query]);
 
   const selected = filtered.find(e => e.id === selectedId) ?? filtered[0] ?? null;
+  const context = useEmailContext(selected ? {
+    id: selected.id,
+    sender: selected.sender,
+    senderEmail: selected.senderEmail,
+    subject: selected.subject,
+    body: selected.body,
+    timestamp: selected.timestamp,
+  } : null);
 
   function openCompose() {
     setCompose({ to: "", subject: "", body: "" });
@@ -342,6 +352,14 @@ export default function EmailInterface() {
             assistantOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
+          <ContextTrigger senderEmail={selected?.senderEmail ?? selected?.sender} communications={filtered.map(e => ({
+            id: e.id,
+            type: "email",
+            from: e.senderEmail ?? e.sender,
+            subject: e.subject,
+            body: e.body,
+            timestamp: e.timestamp,
+          }))} />
           <AssistantPanel
             email={{
               id: selected?.id,
