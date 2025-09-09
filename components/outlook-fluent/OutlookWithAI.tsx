@@ -492,52 +492,89 @@ export default function OutlookWithAI() {
         </Stack>
       </Stack>
 
-      {/* AI Assistant Panel */}
-      <Panel
-        isOpen={isAIPanelOpen}
-        type={PanelType.custom}
-        customWidth="400px"
-        onDismiss={() => setIsAIPanelOpen(false)}
-        headerText="AI Assistant"
-        closeButtonAriaLabel="Close AI Assistant"
-        styles={{
-          root: {
-            backgroundColor: outlookTheme.contentBackground,
-            position: "fixed",
-            right: 0,
-            top: 0,
-            height: "100vh",
-            zIndex: 1000,
-          },
-          overlay: {
-            backgroundColor: "rgba(0, 0, 0, 0.1)",
-          },
-        }}
-      >
-        {selectedEmail && (
-          <ContextTrigger
-            emailContext={{
-              sender: selectedEmail.sender,
-              senderEmail: selectedEmail.senderEmail,
-              subject: selectedEmail.subject,
-              body: selectedEmail.body,
-              receivedDateTime: selectedEmail.receivedTime,
+      {/* AI Assistant Panel Overlay */}
+      {isAIPanelOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.1)",
+              zIndex: 999,
             }}
+            onClick={() => setIsAIPanelOpen(false)}
           />
-        )}
-        <AssistantPanel
-          email={selectedEmail ? {
-            sender: selectedEmail.sender,
-            senderEmail: selectedEmail.senderEmail,
-            subject: selectedEmail.subject,
-            body: selectedEmail.body,
-            receivedAt: selectedEmail.receivedTime,
-          } : null}
-          communications={communicationsArray}
-          clientEmail={selectedClient?.email}
-          onCollapse={() => setIsAIPanelOpen(false)}
-        />
-      </Panel>
+          
+          {/* Panel */}
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              width: "400px",
+              height: "100vh",
+              backgroundColor: outlookTheme.contentBackground,
+              borderLeft: `1px solid ${outlookTheme.borderColor}`,
+              zIndex: 1000,
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "-2px 0 8px rgba(0, 0, 0, 0.1)",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "16px",
+                borderBottom: `1px solid ${outlookTheme.borderColor}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                backgroundColor: outlookTheme.contentBackground,
+              }}
+            >
+              <Text variant="large" styles={{ root: { fontWeight: "bold" } }}>
+                AI Assistant
+              </Text>
+              <IconButton
+                iconProps={{ iconName: "ChromeClose" }}
+                onClick={() => setIsAIPanelOpen(false)}
+                title="Close AI Assistant"
+              />
+            </div>
+            
+            {/* Content */}
+            <div style={{ flex: 1, overflow: "auto" }}>
+              {selectedEmail && (
+                <ContextTrigger
+                  emailContext={{
+                    sender: selectedEmail.sender,
+                    senderEmail: selectedEmail.senderEmail,
+                    subject: selectedEmail.subject,
+                    body: selectedEmail.body,
+                    receivedDateTime: selectedEmail.receivedTime,
+                  }}
+                />
+              )}
+              <AssistantPanel
+                email={selectedEmail ? {
+                  sender: selectedEmail.sender,
+                  senderEmail: selectedEmail.senderEmail,
+                  subject: selectedEmail.subject,
+                  body: selectedEmail.body,
+                  receivedAt: selectedEmail.receivedTime,
+                } : null}
+                communications={communicationsArray}
+                clientEmail={selectedClient?.email}
+                onCollapse={() => setIsAIPanelOpen(false)}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </Stack>
   );
 }
