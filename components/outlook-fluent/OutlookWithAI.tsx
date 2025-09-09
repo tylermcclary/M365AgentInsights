@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   CommandBar,
   ICommandBarItemProps,
@@ -92,11 +92,6 @@ export default function OutlookWithAI() {
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id ?? "");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const selectedClient = useMemo(() => clients.find(c => c.id === selectedClientId), [selectedClientId]);
 
@@ -299,23 +294,8 @@ export default function OutlookWithAI() {
     },
   });
 
-  if (!isClient) {
-    return (
-      <div style={{ 
-        height: "100vh", 
-        display: "flex", 
-        alignItems: "center", 
-        justifyContent: "center",
-        backgroundColor: outlookTheme.navigationBackground 
-      }}>
-        <Spinner size={SpinnerSize.large} label="Loading Outlook..." />
-      </div>
-    );
-  }
-
   return (
-    <div suppressHydrationWarning>
-      <Stack styles={stackStyles} tokens={stackTokens}>
+    <Stack styles={stackStyles} tokens={stackTokens}>
       {/* CommandBar */}
       <CommandBar
         items={commandBarItems}
@@ -507,7 +487,6 @@ export default function OutlookWithAI() {
           onCollapse={() => setIsAIPanelOpen(false)}
         />
       </Panel>
-      </Stack>
-    </div>
+    </Stack>
   );
 }
