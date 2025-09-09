@@ -28,27 +28,7 @@ import {
   IContextualMenuItem,
 } from "@fluentui/react";
 import {
-  MailRegular,
-  CalendarRegular,
-  PeopleRegular,
-  InboxRegular,
-  SendRegular,
-  EditRegular,
-  DeleteRegular,
-  ArchiveRegular,
-  StarRegular,
   FlagRegular,
-  FolderRegular,
-  AddRegular,
-  SearchRegular,
-  SettingsRegular,
-  PersonRegular,
-  MoreHorizontalRegular,
-  ReplyRegular,
-  ReplyAllRegular,
-  ForwardRegular,
-  PanelRightRegular,
-  PanelRightCloseRegular,
 } from "@fluentui/react-icons";
 import { clients, getCommunicationsByClient } from "@/data/sampleData";
 import { useMemo } from "react";
@@ -387,9 +367,9 @@ export default function OutlookShell() {
               },
             }}
           >
-            <PivotItem headerText="Mail" itemKey="mail" itemIcon={<MailRegular />} />
-            <PivotItem headerText="Calendar" itemKey="calendar" itemIcon={<CalendarRegular />} />
-            <PivotItem headerText="People" itemKey="people" itemIcon={<PeopleRegular />} />
+            <PivotItem headerText="Mail" itemKey="mail" itemIcon="Mail" />
+            <PivotItem headerText="Calendar" itemKey="calendar" itemIcon="Calendar" />
+            <PivotItem headerText="People" itemKey="people" itemIcon="People" />
           </Pivot>
 
           <Stack horizontal styles={{ root: { flex: 1 } }} tokens={stackTokens}>
@@ -429,7 +409,7 @@ export default function OutlookShell() {
                       {selectedEmail.subject}
                     </Text>
                     <IconButton
-                      iconProps={{ iconName: "PanelRightClose" }}
+                      iconProps={{ iconName: "ChromeClose" }}
                       onClick={() => setIsReadingPaneOpen(false)}
                       title="Close reading pane"
                     />
