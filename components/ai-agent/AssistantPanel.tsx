@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   PanelRightOpen,
   PanelRightClose,
@@ -63,7 +63,7 @@ export default function AssistantPanel({
 
   const clientDisplay = useMemo(() => email?.sender ?? "Client", [email?.sender]);
 
-  async function analyze() {
+  const analyze = useCallback(async () => {
     setLoading(true);
     await new Promise(r => setTimeout(r, 300));
     const comms: Communication[] = (communications && communications.length > 0)
@@ -83,7 +83,15 @@ export default function AssistantPanel({
     console.log("Analysis result:", insightsResp);
     setInsights(insightsResp);
     setLoading(false);
-  }
+  }, [communications, email, clientEmail]);
+
+  // Auto-analyze when communications are available
+  useEffect(() => {
+    if (communications && communications.length > 0 && !insights) {
+      console.log("Auto-triggering analysis with communications:", communications.length);
+      analyze();
+    }
+  }, [communications, insights, analyze]);
 
   // Listen for context analyzer events to auto-update insights
   useEffect(() => {
