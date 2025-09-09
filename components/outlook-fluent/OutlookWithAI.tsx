@@ -95,6 +95,45 @@ export default function OutlookWithAI() {
 
   const selectedClient = useMemo(() => clients.find(c => c.id === selectedClientId), [selectedClientId]);
 
+  // Convert communications to flat array for AssistantPanel
+  const communicationsArray = useMemo(() => {
+    if (!selectedClient) return [];
+    const comms = getCommunicationsByClient(selectedClient.id);
+    const allComms = [
+      ...comms.emails.map(e => ({
+        id: e.id,
+        type: 'email' as const,
+        from: selectedClient.name,
+        to: 'advisor@firm.com',
+        subject: e.subject || '(No subject)',
+        body: e.body,
+        timestamp: e.receivedDateTime,
+        clientId: e.clientId,
+      })),
+      ...comms.events.map(e => ({
+        id: e.id,
+        type: 'calendar' as const,
+        from: selectedClient.name,
+        to: 'advisor@firm.com',
+        subject: e.subject || '(No subject)',
+        body: e.body || '',
+        timestamp: e.start.dateTime,
+        clientId: e.clientId,
+      })),
+      ...comms.chats.map(c => ({
+        id: c.id,
+        type: 'teams' as const,
+        from: selectedClient.name,
+        to: 'advisor@firm.com',
+        subject: 'Teams Message',
+        body: c.message,
+        timestamp: c.timestamp,
+        clientId: c.clientId,
+      }))
+    ];
+    return allComms.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [selectedClient]);
+
   // Generate email items from sample data
   const emailItems: EmailItem[] = useMemo(() => {
     if (!selectedClient) return [];
@@ -476,14 +515,15 @@ export default function OutlookWithAI() {
           />
         )}
         <AssistantPanel
-          selectedEmail={selectedEmail ? {
+          email={selectedEmail ? {
             sender: selectedEmail.sender,
             senderEmail: selectedEmail.senderEmail,
             subject: selectedEmail.subject,
             body: selectedEmail.body,
-            receivedDateTime: selectedEmail.receivedTime,
+            receivedAt: selectedEmail.receivedTime,
           } : null}
-          communications={selectedClient ? getCommunicationsByClient(selectedClient.id) : { emails: [], calendarEvents: [], teamsMessages: [] }}
+          communications={communicationsArray}
+          clientEmail={selectedClient?.email}
           onCollapse={() => setIsAIPanelOpen(false)}
         />
       </Panel>
