@@ -176,7 +176,7 @@ export default function OutlookShell() {
     },
   ];
 
-  // Navigation groups
+  // Navigation groups with proper Outlook folder structure
   const navLinkGroups: INavLinkGroup[] = [
     {
       links: [
