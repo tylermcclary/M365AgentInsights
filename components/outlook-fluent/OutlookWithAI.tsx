@@ -524,12 +524,12 @@ export default function OutlookWithAI() {
       {/* AI Assistant Panel Overlay */}
       {isAIPanelOpen && (
         <>
-          {/* Backdrop - Only covers the email content area */}
+          {/* Backdrop - Covers the entire screen */}
           <div
             style={{
               position: "fixed",
               top: 0,
-              left: "580px", // Start after nav + email list
+              left: 0,
               right: 0,
               bottom: 0,
               backgroundColor: "rgba(0, 0, 0, 0.1)",
@@ -543,7 +543,6 @@ export default function OutlookWithAI() {
             style={{
               position: "fixed",
               top: 0,
-              left: "580px", // 280px (nav) + 300px (email list) = 580px
               right: 0,
               width: "400px",
               height: "100vh",
