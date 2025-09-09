@@ -600,6 +600,11 @@ export default function OutlookWithAI() {
                 clientEmail={selectedClient?.email}
                 onCollapse={() => setIsAIPanelOpen(false)}
               />
+              {console.log("OutlookWithAI - Passing to AssistantPanel:", {
+                email: selectedEmail?.subject,
+                communicationsCount: communicationsArray.length,
+                clientEmail: selectedClient?.email
+              })}
             </div>
           </div>
         </>

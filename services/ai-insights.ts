@@ -145,16 +145,25 @@ export function generateClientSummary(communications: any[]): ClientSummary {
 
 export function identifyLastInteraction(communications: any[]): LastInteraction | null {
   try {
+    console.log("identifyLastInteraction - input:", communications?.length, "items");
     const items = normalizeCommunications(communications);
-    if (items.length === 0) return null;
+    console.log("identifyLastInteraction - normalized:", items?.length, "items");
+    if (items.length === 0) {
+      console.log("identifyLastInteraction - no items, returning null");
+      return null;
+    }
     const last = items.reduce((a, b) => (new Date(a.timestamp) > new Date(b.timestamp) ? a : b));
-    return {
+    console.log("identifyLastInteraction - last item:", last);
+    const result = {
       when: last.timestamp,
       type: last.type,
       subject: last.subject,
       snippet: (last.body ?? "").slice(0, 140),
     };
-  } catch {
+    console.log("identifyLastInteraction - result:", result);
+    return result;
+  } catch (error) {
+    console.log("identifyLastInteraction - error:", error);
     return null;
   }
 }

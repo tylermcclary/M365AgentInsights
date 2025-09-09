@@ -87,11 +87,12 @@ export default function AssistantPanel({
 
   // Auto-analyze when communications are available
   useEffect(() => {
-    if (communications && communications.length > 0 && !insights) {
+    console.log("AssistantPanel useEffect - communications:", communications?.length, "insights:", !!insights);
+    if (communications && communications.length > 0) {
       console.log("Auto-triggering analysis with communications:", communications.length);
       analyze();
     }
-  }, [communications, insights, analyze]);
+  }, [communications, analyze]);
 
   // Listen for context analyzer events to auto-update insights
   useEffect(() => {
