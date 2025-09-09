@@ -273,7 +273,7 @@ export default function OutlookWithAI() {
     },
   ];
 
-  // Email list columns
+  // Email list columns - compact nested layout
   const emailColumns: IColumn[] = [
     {
       key: "flag",
@@ -296,35 +296,66 @@ export default function OutlookWithAI() {
       ),
     },
     {
-      key: "sender",
-      name: "From",
-      fieldName: "sender",
+      key: "content",
+      name: "Email",
+      fieldName: "content",
       minWidth: 200,
-      maxWidth: 300,
-      isResizable: true,
-    },
-    {
-      key: "subject",
-      name: "Subject",
-      fieldName: "subject",
-      minWidth: 300,
-      isResizable: true,
+      flexGrow: 1,
+      isResizable: false,
       onRender: (item: EmailItem) => (
-        <div>
-          <Text styles={{ root: { fontWeight: item.isRead ? "normal" : "bold" } }}>
-            {item.subject}
-          </Text>
-          {item.hasAttachments && <span style={{ marginLeft: 8 }}>📎</span>}
+        <div style={{ padding: "4px 0", minWidth: 0 }}>
+          {/* Sender name and date on same line */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
+            <Text 
+              styles={{ 
+                root: { 
+                  fontWeight: item.isRead ? "normal" : "bold",
+                  fontSize: "13px",
+                  color: outlookTheme.textPrimary,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  flex: 1,
+                  marginRight: "8px"
+                } 
+              }}
+            >
+              {item.sender}
+            </Text>
+            <Text 
+              styles={{ 
+                root: { 
+                  fontSize: "11px",
+                  color: outlookTheme.textSecondary,
+                  flexShrink: 0
+                } 
+              }}
+            >
+              {new Date(item.receivedTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </Text>
+          </div>
+          
+          {/* Subject line below sender */}
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <Text 
+              styles={{ 
+                root: { 
+                  fontWeight: item.isRead ? "normal" : "bold",
+                  fontSize: "12px",
+                  color: outlookTheme.textSecondary,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  flex: 1
+                } 
+              }}
+            >
+              {item.subject}
+            </Text>
+            {item.hasAttachments && <span style={{ flexShrink: 0, fontSize: "10px" }}>📎</span>}
+          </div>
         </div>
       ),
-    },
-    {
-      key: "receivedTime",
-      name: "Received",
-      fieldName: "receivedTime",
-      minWidth: 150,
-      maxWidth: 200,
-      isResizable: true,
     },
   ];
 
@@ -426,7 +457,7 @@ export default function OutlookWithAI() {
 
           <Stack horizontal styles={{ root: { flex: 1, overflow: "hidden" } }} tokens={stackTokens}>
             {/* Email List - Smaller sidebar */}
-            <Stack styles={{ root: { width: 300, borderRight: `1px solid ${outlookTheme.borderColor}` } }}>
+            <Stack styles={{ root: { width: 350, borderRight: `1px solid ${outlookTheme.borderColor}` } }}>
               <div style={{ padding: "8px 16px", borderBottom: `1px solid ${outlookTheme.borderColor}` }}>
                 <Text variant="medium" styles={{ root: { fontWeight: "bold" } }}>
                   {selectedFolder === "inbox" ? "Inbox" : 
