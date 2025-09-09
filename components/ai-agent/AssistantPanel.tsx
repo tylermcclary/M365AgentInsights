@@ -78,7 +78,9 @@ export default function AssistantPanel({
             timestamp: email.receivedAt ?? new Date().toISOString(),
           }]
         : [];
+    console.log("Analyzing with communications:", comms.length, "items", comms);
     const insightsResp = analyzeClientCommunications(clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), comms);
+    console.log("Analysis result:", insightsResp);
     setInsights(insightsResp);
     setLoading(false);
   }
@@ -91,19 +93,20 @@ export default function AssistantPanel({
         setInsights(e.insights);
       }
     });
-    return () => unsub();
+    return () => {
+      unsub();
+    };
   }, [clientEmail, email?.senderEmail, email?.sender]);
 
   const history = useMemo(() => {
     const base: Communication[] = communications ?? [];
-    const key = (clientEmail ?? email?.senderEmail ?? email?.sender ?? "").toLowerCase();
-    const filtered = key ? base.filter(c => (c.from ?? "").toLowerCase().includes(key)) : base;
-    return filtered
+    // Since all communications are already filtered for the selected client, just use them all
+    return base
       .slice()
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10)
       .map(i => ({ when: new Date(i.timestamp).toLocaleString(), type: i.type, subject: i.subject ?? "(no subject)" }));
-  }, [communications, clientEmail, email?.senderEmail, email?.sender]);
+  }, [communications]);
 
   function toggleSection(key: SectionKey) {
     setSectionsOpen(prev => ({ ...prev, [key]: !prev[key] }));
@@ -248,7 +251,7 @@ function Section({
   children,
 }: {
   title: string;
-  icon: JSX.Element;
+  icon: React.ReactElement;
   open: boolean;
   onToggle: () => void;
   loading?: boolean;

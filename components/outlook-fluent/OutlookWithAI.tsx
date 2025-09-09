@@ -47,6 +47,7 @@ const stackStyles: IStackStyles = {
   root: {
     height: "100vh",
     backgroundColor: outlookTheme.navigationBackground,
+    overflow: "hidden",
   },
 };
 
@@ -62,6 +63,7 @@ const contentStackStyles: IStackStyles = {
   root: {
     flex: 1,
     backgroundColor: outlookTheme.contentBackground,
+    overflow: "hidden",
   },
 };
 
@@ -422,9 +424,9 @@ export default function OutlookWithAI() {
             <PivotItem headerText="People" itemKey="people" itemIcon="People" />
           </Pivot>
 
-          <Stack horizontal styles={{ root: { flex: 1 } }} tokens={stackTokens}>
+          <Stack horizontal styles={{ root: { flex: 1, overflow: "hidden" } }} tokens={stackTokens}>
             {/* Email List */}
-            <Stack styles={{ root: { flex: 1, minWidth: 400 } }}>
+            <Stack styles={{ root: { flex: 1, minWidth: 300, maxWidth: "50%" } }}>
               <div style={{ padding: "8px 16px", borderBottom: `1px solid ${outlookTheme.borderColor}` }}>
                 <Text variant="medium" styles={{ root: { fontWeight: "bold" } }}>
                   {selectedFolder === "inbox" ? "Inbox" : 
@@ -452,7 +454,7 @@ export default function OutlookWithAI() {
 
             {/* Reading Pane */}
             {isReadingPaneOpen && selectedEmail && (
-              <Stack styles={{ root: { width: 400, borderLeft: `1px solid ${outlookTheme.borderColor}` } }}>
+              <Stack styles={{ root: { flex: 1, minWidth: 300, borderLeft: `1px solid ${outlookTheme.borderColor}` } }}>
                 <div style={{ padding: "16px", borderBottom: `1px solid ${outlookTheme.borderColor}` }}>
                   <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
                     <Text variant="large" styles={{ root: { fontWeight: "bold" } }}>
@@ -493,13 +495,22 @@ export default function OutlookWithAI() {
       {/* AI Assistant Panel */}
       <Panel
         isOpen={isAIPanelOpen}
-        type={PanelType.medium}
+        type={PanelType.custom}
+        customWidth="400px"
         onDismiss={() => setIsAIPanelOpen(false)}
         headerText="AI Assistant"
         closeButtonAriaLabel="Close AI Assistant"
         styles={{
           root: {
             backgroundColor: outlookTheme.contentBackground,
+            position: "fixed",
+            right: 0,
+            top: 0,
+            height: "100vh",
+            zIndex: 1000,
+          },
+          overlay: {
+            backgroundColor: "rgba(0, 0, 0, 0.1)",
           },
         }}
       >
