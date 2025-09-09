@@ -29,8 +29,8 @@ import {
   FlagRegular,
 } from "@fluentui/react-icons";
 import { clients, getCommunicationsByClient } from "@/data/sampleData";
-import { AssistantPanel } from "@/components/ai-agent/AssistantPanel";
-import { ContextTrigger } from "@/components/ai-agent/ContextTrigger";
+import AssistantPanel from "@/components/ai-agent/AssistantPanel";
+import ContextTrigger from "@/components/ai-agent/ContextTrigger";
 import { useEmailContext } from "@/hooks/useEmailContext";
 
 // Outlook theme colors
