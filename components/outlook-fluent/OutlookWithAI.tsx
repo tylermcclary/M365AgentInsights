@@ -519,8 +519,9 @@ export default function OutlookWithAI() {
             </Stack>
 
             {/* AI Insights Panel - Inline */}
+            {console.log("Rendering AI panel - isAIPanelOpen:", isAIPanelOpen)}
             {isAIPanelOpen && (
-              <Stack styles={{ root: { width: 400, borderLeft: `1px solid ${outlookTheme.borderColor}` } }}>
+              <Stack styles={{ root: { width: 400, borderLeft: `1px solid ${outlookTheme.borderColor}`, backgroundColor: outlookTheme.contentBackground } }}>
                 {/* AI Panel Header */}
                 <div style={{ 
                   padding: "16px", 
