@@ -247,22 +247,45 @@ export default function OutlookShell() {
       key: "sender",
       name: "From",
       fieldName: "sender",
-      minWidth: 200,
-      maxWidth: 300,
+      minWidth: 120,
+      maxWidth: 200,
       isResizable: true,
+      onRender: (item: EmailItem) => (
+        <Text 
+          styles={{ 
+            root: { 
+              fontWeight: item.isRead ? "normal" : "bold",
+              wordBreak: "break-word",
+              lineHeight: "1.4"
+            } 
+          }}
+        >
+          {item.sender}
+        </Text>
+      ),
     },
     {
       key: "subject",
       name: "Subject",
       fieldName: "subject",
-      minWidth: 300,
+      minWidth: 200,
+      flexGrow: 1,
       isResizable: true,
       onRender: (item: EmailItem) => (
-        <div>
-          <Text styles={{ root: { fontWeight: item.isRead ? "normal" : "bold" } }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Text 
+            styles={{ 
+              root: { 
+                fontWeight: item.isRead ? "normal" : "bold",
+                wordBreak: "break-word",
+                lineHeight: "1.4",
+                flex: 1
+              } 
+            }}
+          >
             {item.subject}
           </Text>
-          {item.hasAttachments && <span style={{ marginLeft: 8 }}>📎</span>}
+          {item.hasAttachments && <span style={{ flexShrink: 0 }}>📎</span>}
         </div>
       ),
     },
@@ -270,9 +293,23 @@ export default function OutlookShell() {
       key: "receivedTime",
       name: "Received",
       fieldName: "receivedTime",
-      minWidth: 150,
-      maxWidth: 200,
+      minWidth: 100,
+      maxWidth: 120,
       isResizable: true,
+      onRender: (item: EmailItem) => (
+        <Text 
+          styles={{ 
+            root: { 
+              fontSize: "12px",
+              color: outlookTheme.textSecondary,
+              wordBreak: "break-word",
+              lineHeight: "1.4"
+            } 
+          }}
+        >
+          {new Date(item.receivedTime).toLocaleDateString()}
+        </Text>
+      ),
     },
   ];
 
@@ -374,7 +411,7 @@ export default function OutlookShell() {
 
           <Stack horizontal styles={{ root: { flex: 1 } }} tokens={stackTokens}>
             {/* Email List */}
-            <Stack styles={{ root: { flex: 1, minWidth: 400 } }}>
+            <Stack styles={{ root: { flex: 1, minWidth: 300, maxWidth: "50%", overflow: "hidden" } }}>
               <div style={{ padding: "8px 16px", borderBottom: `1px solid ${outlookTheme.borderColor}` }}>
                 <Text variant="medium" styles={{ root: { fontWeight: "bold" } }}>
                   {selectedFolder === "inbox" ? "Inbox" : 
@@ -391,10 +428,14 @@ export default function OutlookShell() {
                 styles={{
                   root: {
                     backgroundColor: outlookTheme.contentBackground,
+                    overflow: "hidden",
                   },
                   headerWrapper: {
                     backgroundColor: outlookTheme.contentBackground,
                     borderBottom: `1px solid ${outlookTheme.borderColor}`,
+                  },
+                  contentWrapper: {
+                    overflow: "hidden",
                   },
                 }}
               />
