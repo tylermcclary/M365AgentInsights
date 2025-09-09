@@ -11,6 +11,9 @@
   "dependencies": {
     "@azure/msal-browser": "^4.22.0",
     "@azure/msal-react": "^3.0.19",
+    "@fluentui/react": "^8.123.5",
+    "@fluentui/react-components": "^9.70.0",
+    "@fluentui/react-icons": "^2.0.309",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "date-fns": "^4.1.0",
     "isomorphic-fetch": "^3.0.0",
