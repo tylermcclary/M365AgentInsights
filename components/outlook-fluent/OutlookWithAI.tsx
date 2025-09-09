@@ -425,8 +425,8 @@ export default function OutlookWithAI() {
           </Pivot>
 
           <Stack horizontal styles={{ root: { flex: 1, overflow: "hidden" } }} tokens={stackTokens}>
-            {/* Email List */}
-            <Stack styles={{ root: { flex: 1, minWidth: 300, maxWidth: "50%" } }}>
+            {/* Email List - Smaller sidebar */}
+            <Stack styles={{ root: { width: 300, borderRight: `1px solid ${outlookTheme.borderColor}` } }}>
               <div style={{ padding: "8px 16px", borderBottom: `1px solid ${outlookTheme.borderColor}` }}>
                 <Text variant="medium" styles={{ root: { fontWeight: "bold" } }}>
                   {selectedFolder === "inbox" ? "Inbox" : 
@@ -452,42 +452,71 @@ export default function OutlookWithAI() {
               />
             </Stack>
 
-            {/* Reading Pane */}
-            {isReadingPaneOpen && selectedEmail && (
-              <Stack styles={{ root: { flex: 1, minWidth: 300, borderLeft: `1px solid ${outlookTheme.borderColor}` } }}>
-                <div style={{ padding: "16px", borderBottom: `1px solid ${outlookTheme.borderColor}` }}>
-                  <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
-                    <Text variant="large" styles={{ root: { fontWeight: "bold" } }}>
-                      {selectedEmail.subject}
+            {/* Main Email Content Area */}
+            <Stack styles={{ root: { flex: 1, position: "relative" } }}>
+              {selectedEmail ? (
+                <>
+                  {/* Email Header with AI Insights Button */}
+                  <div style={{ 
+                    padding: "16px", 
+                    borderBottom: `1px solid ${outlookTheme.borderColor}`,
+                    backgroundColor: outlookTheme.contentBackground,
+                    position: "relative"
+                  }}>
+                    <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+                      <div style={{ flex: 1 }}>
+                        <Text variant="large" styles={{ root: { fontWeight: "bold" } }}>
+                          {selectedEmail.subject}
+                        </Text>
+                        <Text variant="small" styles={{ root: { color: outlookTheme.textSecondary, marginTop: 4 } }}>
+                          From: {selectedEmail.sender} • {selectedEmail.receivedTime}
+                        </Text>
+                      </div>
+                      <Stack horizontal tokens={{ childrenGap: 8 }}>
+                        <IconButton iconProps={{ iconName: "Reply" }} title="Reply" />
+                        <IconButton iconProps={{ iconName: "ReplyAll" }} title="Reply All" />
+                        <IconButton iconProps={{ iconName: "Forward" }} title="Forward" />
+                        <PrimaryButton
+                          text="AI Insights"
+                          iconProps={{ iconName: "Lightbulb" }}
+                          onClick={() => setIsAIPanelOpen(true)}
+                        />
+                      </Stack>
+                    </Stack>
+                  </div>
+                  
+                  {/* Email Content */}
+                  <div style={{ 
+                    padding: "24px", 
+                    flex: 1, 
+                    overflow: "auto",
+                    backgroundColor: outlookTheme.contentBackground
+                  }}>
+                    <Text styles={{ root: { lineHeight: "1.6", fontSize: "14px" } }}>
+                      {selectedEmail.body}
                     </Text>
-                    <IconButton
-                      iconProps={{ iconName: "ChromeClose" }}
-                      onClick={() => setIsReadingPaneOpen(false)}
-                      title="Close reading pane"
-                    />
-                  </Stack>
-                  <Text variant="small" styles={{ root: { color: outlookTheme.textSecondary, marginTop: 4 } }}>
-                    From: {selectedEmail.sender} • {selectedEmail.receivedTime}
-                  </Text>
+                  </div>
+                </>
+              ) : (
+                /* No Email Selected State */
+                <div style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center", 
+                  height: "100%",
+                  backgroundColor: outlookTheme.contentBackground
+                }}>
+                  <div style={{ textAlign: "center" }}>
+                    <Text variant="large" styles={{ root: { color: outlookTheme.textSecondary } }}>
+                      Select an email to view
+                    </Text>
+                    <Text variant="small" styles={{ root: { color: outlookTheme.textSecondary, marginTop: 8 } }}>
+                      Choose an email from the list to read its content
+                    </Text>
+                  </div>
                 </div>
-                <div style={{ padding: "16px", flex: 1 }}>
-                  <Text>{selectedEmail.body}</Text>
-                </div>
-                <div style={{ padding: "16px", borderTop: `1px solid ${outlookTheme.borderColor}` }}>
-                  <Stack horizontal tokens={{ childrenGap: 8 }}>
-                    <IconButton iconProps={{ iconName: "Reply" }} title="Reply" />
-                    <IconButton iconProps={{ iconName: "ReplyAll" }} title="Reply All" />
-                    <IconButton iconProps={{ iconName: "Forward" }} title="Forward" />
-                    <PrimaryButton
-                      text="AI Insights"
-                      iconProps={{ iconName: "Lightbulb" }}
-                      onClick={() => setIsAIPanelOpen(true)}
-                      styles={{ root: { marginLeft: "auto" } }}
-                    />
-                  </Stack>
-                </div>
-              </Stack>
-            )}
+              )}
+            </Stack>
           </Stack>
         </Stack>
       </Stack>
@@ -495,12 +524,12 @@ export default function OutlookWithAI() {
       {/* AI Assistant Panel Overlay */}
       {isAIPanelOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Only covers the email content area */}
           <div
             style={{
               position: "fixed",
               top: 0,
-              left: 0,
+              left: "580px", // Start after nav + email list
               right: 0,
               bottom: 0,
               backgroundColor: "rgba(0, 0, 0, 0.1)",
@@ -514,6 +543,7 @@ export default function OutlookWithAI() {
             style={{
               position: "fixed",
               top: 0,
+              left: "580px", // 280px (nav) + 300px (email list) = 580px
               right: 0,
               width: "400px",
               height: "100vh",
