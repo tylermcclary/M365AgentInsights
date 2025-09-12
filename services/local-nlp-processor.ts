@@ -1,5 +1,5 @@
-import * as nlp from 'compromise';
-import * as Sentiment from 'sentiment';
+import nlp from 'compromise';
+import Sentiment from 'sentiment';
 
 // Only import natural on server side to avoid browser compatibility issues
 let WordTokenizer: any = null;
@@ -11,7 +11,7 @@ if (typeof window === 'undefined') {
     console.warn('Natural library not available:', error);
   }
 }
-import { differenceInCalendarWeeks, addDays, format } from 'date-fns';
+// import { differenceInCalendarWeeks, addDays, format } from 'date-fns';
 
 export interface LocalNLPAnalysisResult {
   clientSummary: string;
@@ -47,7 +47,7 @@ export interface LocalNLPAnalysisResult {
 }
 
 export class LocalNLPProcessor {
-  private sentiment = new Sentiment();
+  private sentiment: any;
   private tokenizer = WordTokenizer ? new WordTokenizer() : null;
   
   // Financial advisor specific keywords
@@ -61,6 +61,12 @@ export class LocalNLPProcessor {
 
   constructor() {
     // Initialize sentiment analyzer and tokenizer
+    try {
+      this.sentiment = new Sentiment();
+    } catch (error) {
+      console.error('Failed to initialize Sentiment:', error);
+      this.sentiment = null;
+    }
   }
 
   async analyzeClientCommunications(communications: any[]): Promise<LocalNLPAnalysisResult> {
@@ -77,11 +83,11 @@ export class LocalNLPProcessor {
       // Extract entities
       const people = doc.people().out('array');
       const organizations = doc.organizations().out('array');
-      const dates = doc.dates().out('array');
-      const money = doc.money().out('array');
+      const dates = doc.match('#Date').out('array'); // Use match instead of dates()
+      const money = doc.match('#Money').out('array'); // Use match instead of money()
       
       // Sentiment analysis
-      const sentimentResult = this.sentiment.analyze(allText);
+      const sentimentResult = this.sentiment ? this.sentiment.analyze(allText) : { comparative: 0, score: 0 };
       const sentimentScore = this.normalizeSentiment(sentimentResult.comparative);
       
       // Financial-specific analysis

@@ -84,7 +84,7 @@ export class AIProcessingManager {
             
           case 'nlp':
             if (!this.nlpProcessor) {
-              throw new Error('Local NLP processor not initialized.');
+              this.nlpProcessor = new LocalNLPProcessor();
             }
             insights = await this.processWithLocalNLP(communications);
             break;
