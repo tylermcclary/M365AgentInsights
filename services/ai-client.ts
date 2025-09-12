@@ -6,7 +6,7 @@
  * Node.js-specific libraries.
  */
 
-import { AIProcessingMode, EnhancedClientInsights } from '@/types';
+import { AIProcessingMode, EnhancedClientInsights } from './ai-types';
 
 /**
  * Analyze client communications using the AI processing system

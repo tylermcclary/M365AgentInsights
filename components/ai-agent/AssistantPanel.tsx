@@ -21,9 +21,8 @@ import {
   switchAIMode, 
   getCurrentAIMode
 } from "@/services/ai-client";
-import { type ClientInsights, type Communication } from "@/services/ai-insights";
+import { type ClientInsights, type Communication, type AIProcessingMode, type EnhancedClientInsights } from "@/services/ai-types";
 import { subscribeContext } from "@/services/contextAnalyzer";
-import { type AIProcessingMode, type EnhancedClientInsights } from "@/types";
 import Tooltip from "@/components/ui/Tooltip";
 import Button from "@/components/ui/Button";
 
