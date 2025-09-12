@@ -19,10 +19,9 @@ import {
 import { 
   analyzeClientCommunications, 
   switchAIMode, 
-  getCurrentAIMode,
-  type ClientInsights, 
-  type Communication 
-} from "@/services/ai-insights";
+  getCurrentAIMode
+} from "@/services/ai-client";
+import { type ClientInsights, type Communication } from "@/services/ai-insights";
 import { subscribeContext } from "@/services/contextAnalyzer";
 import { type AIProcessingMode, type EnhancedClientInsights } from "@/types";
 import Tooltip from "@/components/ui/Tooltip";
@@ -75,7 +74,17 @@ export default function AssistantPanel({
 
   // Initialize AI mode
   useEffect(() => {
-    setAIMode(getCurrentAIMode());
+    const initializeMode = async () => {
+      try {
+        const currentMode = await getCurrentAIMode();
+        setAIMode(currentMode);
+      } catch (error) {
+        console.error('Failed to get current AI mode:', error);
+        setAIMode('mock'); // Fallback to mock mode
+      }
+    };
+    
+    initializeMode();
   }, []);
 
   const analyze = useCallback(async () => {
@@ -106,13 +115,20 @@ export default function AssistantPanel({
   }, [communications, email, clientEmail]);
 
   // AI mode change handler
-  const handleAIModeChange = useCallback((newMode: AIProcessingMode) => {
-    setAIMode(newMode);
-    switchAIMode(newMode);
-    
-    // Optionally re-analyze current client with new mode
-    if (clientEmail && communications && communications.length > 0) {
-      analyze();
+  const handleAIModeChange = useCallback(async (newMode: AIProcessingMode) => {
+    try {
+      setAIMode(newMode);
+      await switchAIMode(newMode);
+      
+      // Optionally re-analyze current client with new mode
+      if (clientEmail && communications && communications.length > 0) {
+        analyze();
+      }
+    } catch (error) {
+      console.error('Failed to switch AI mode:', error);
+      // Revert to previous mode on error
+      const currentMode = await getCurrentAIMode();
+      setAIMode(currentMode);
     }
   }, [clientEmail, communications, analyze]);
 
@@ -206,7 +222,10 @@ export default function AssistantPanel({
             </div>
             <select
               value={aiMode}
-              onChange={(e) => handleAIModeChange(e.target.value as AIProcessingMode)}
+              onChange={(e) => {
+                const newMode = e.target.value as AIProcessingMode;
+                handleAIModeChange(newMode);
+              }}
               disabled={loading}
               className="block w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
             >

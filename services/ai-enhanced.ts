@@ -8,22 +8,30 @@
 import OpenAI from 'openai';
 import * as compromise from 'compromise';
 import * as sentiment from 'sentiment';
-import * as natural from 'natural';
-import { getAIConfig, validateAIConfig } from '@/lib/ai-config';
+
+// Only import natural on server side to avoid browser compatibility issues
+let natural: any = null;
+if (typeof window === 'undefined') {
+  try {
+    natural = require('natural');
+  } catch (error) {
+    console.warn('Natural library not available:', error);
+  }
+}
+import { AI_CONFIG, validateAIConfig } from '@/lib/ai-config';
 import type { GraphMailItem, GraphCalendarEvent } from '@/types';
 
 // Initialize AI services
-const aiConfig = getAIConfig();
-const configValidation = validateAIConfig(aiConfig);
+const configValidation = validateAIConfig();
 
 // Initialize OpenAI client only if API key is available
-const openai = aiConfig.openai.apiKey ? new OpenAI({
-  apiKey: aiConfig.openai.apiKey,
+const openai = AI_CONFIG.OPENAI_ENABLED ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
 }) : null;
 
 // Initialize sentiment analyzer
 const sentimentAnalyzer = new sentiment.SentimentAnalyzer();
-const stemmer = natural.PorterStemmer;
+const stemmer = natural ? natural.PorterStemmer : null;
 
 /**
  * Enhanced text analysis result

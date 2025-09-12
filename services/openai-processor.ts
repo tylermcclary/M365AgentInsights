@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { getAIConfig } from '@/lib/ai-config';
+import { AI_CONFIG } from '@/lib/ai-config';
 
 export interface OpenAIAnalysisResult {
   clientSummary: string;
@@ -32,7 +32,7 @@ export interface OpenAIAnalysisResult {
 
 export class OpenAIProcessor {
   private openai: OpenAI;
-  private config = getAIConfig();
+  private config = AI_CONFIG;
   
   constructor(apiKey: string) {
     this.openai = new OpenAI({ apiKey });

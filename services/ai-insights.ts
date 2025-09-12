@@ -1,6 +1,5 @@
 import { addDays, differenceInCalendarWeeks, format } from "date-fns";
 import type { GraphMailItem, GraphCalendarEvent } from "@/types";
-import { generateAIInsights, type AIInsight } from "./ai-enhanced";
 import { AIProcessingManager } from './ai-processing-manager';
 import { AIProcessingMode, EnhancedClientInsights } from '@/types';
 import { getBestAvailableMode, getConfigSummary } from '@/lib/ai-config';
@@ -54,18 +53,11 @@ export async function generateEnhancedInsights(
   events: GraphCalendarEvent[]
 ): Promise<Insight[]> {
   try {
-    // Try to generate AI-enhanced insights
-    const aiInsights = await generateAIInsights(emails, events);
-    
-    // Convert AI insights to the standard Insight format
-    return aiInsights.map(aiInsight => ({
-      id: aiInsight.id,
-      type: aiInsight.type as "task" | "reminder" | "summary",
-      title: aiInsight.title,
-      detail: aiInsight.detail,
-    }));
+    // For now, use basic insights generation
+    // TODO: Integrate with server-side AI processing when needed
+    return generateInsightsFromGraph(emails, events);
   } catch (error) {
-    console.warn('AI insights unavailable, falling back to basic insights:', error);
+    console.warn('Enhanced insights unavailable, falling back to basic insights:', error);
     // Fall back to basic insights generation
     return generateInsightsFromGraph(emails, events);
   }

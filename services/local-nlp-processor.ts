@@ -1,6 +1,16 @@
 import * as nlp from 'compromise';
 import * as Sentiment from 'sentiment';
-import { WordTokenizer } from 'natural';
+
+// Only import natural on server side to avoid browser compatibility issues
+let WordTokenizer: any = null;
+if (typeof window === 'undefined') {
+  try {
+    const natural = require('natural');
+    WordTokenizer = natural.WordTokenizer;
+  } catch (error) {
+    console.warn('Natural library not available:', error);
+  }
+}
 import { differenceInCalendarWeeks, addDays, format } from 'date-fns';
 
 export interface LocalNLPAnalysisResult {
@@ -38,7 +48,7 @@ export interface LocalNLPAnalysisResult {
 
 export class LocalNLPProcessor {
   private sentiment = new Sentiment();
-  private tokenizer = new WordTokenizer();
+  private tokenizer = WordTokenizer ? new WordTokenizer() : null;
   
   // Financial advisor specific keywords
   private readonly FINANCIAL_KEYWORDS = {
