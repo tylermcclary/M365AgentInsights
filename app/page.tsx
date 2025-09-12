@@ -9,22 +9,7 @@ import { CalendarList } from "@/components/outlook/CalendarList";
 import { InsightsPanel } from "@/components/ai-agent/InsightsPanel";
 import { generateInsightsFromGraph } from "@/services/ai-insights";
 import EmailInterface from "@/components/outlook/EmailInterface";
-import dynamic from "next/dynamic";
-
-const OutlookWithAI = dynamic(() => import("@/components/outlook-fluent/OutlookWithAI"), {
-  ssr: false,
-  loading: () => (
-    <div style={{ 
-      height: "100vh", 
-      display: "flex", 
-      alignItems: "center", 
-      justifyContent: "center",
-      backgroundColor: "#f3f2f1" 
-    }}>
-      <div>Loading Outlook...</div>
-    </div>
-  )
-});
+import OutlookWithAI from "@/components/outlook-fluent/OutlookWithAI";
 
 export default function Home() {
   const isAuthenticated = useIsAuthenticated();
