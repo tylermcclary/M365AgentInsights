@@ -95,15 +95,13 @@ export default function AssistantPanel({
           ? [{
               id: email.id ?? "selected",
               type: "email",
-              from: email.senderEmail ?? email.sender,
+              from: email.senderEmail ?? email.sender ?? "Unknown",
               subject: email.subject,
               body: email.body,
               timestamp: email.receivedAt ?? new Date().toISOString(),
             }]
           : [];
-      console.log("Analyzing with communications:", comms.length, "items", comms);
       const insightsResp = await analyzeClientCommunications(clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), comms);
-      console.log("Analysis result:", insightsResp);
       setInsights(insightsResp);
       setProcessingTime(insightsResp.processingMetrics.processingTime);
     } catch (error) {
@@ -148,6 +146,12 @@ export default function AssistantPanel({
         // Convert ClientInsights to EnhancedClientInsights for compatibility
         const enhancedInsights: EnhancedClientInsights = {
           ...e.insights,
+          lastInteraction: e.insights.lastInteraction ? {
+            when: e.insights.lastInteraction.when,
+            type: e.insights.lastInteraction.type,
+            subject: e.insights.lastInteraction.subject || "(no subject)",
+            snippet: e.insights.lastInteraction.snippet || ""
+          } : null,
           processingMetrics: {
             processingTime: 0,
             method: 'mock' as AIProcessingMode,
@@ -171,7 +175,7 @@ export default function AssistantPanel({
       .slice()
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10)
-      .map(i => ({ when: new Date(i.timestamp).toLocaleString(), type: i.type, subject: i.subject ?? "(no subject)" }));
+      .map(i => ({ when: new Date(i.timestamp).toISOString(), type: i.type, subject: i.subject ?? "(no subject)" }));
   }, [communications]);
 
   function toggleSection(key: SectionKey) {
@@ -289,7 +293,7 @@ export default function AssistantPanel({
           >
             <p className="text-sm">
               {insights?.lastInteraction
-                ? `${new Date(insights.lastInteraction.when).toLocaleString()} • ${insights.lastInteraction.type} • ${insights.lastInteraction.subject ?? "(no subject)"}`
+                ? `${new Date(insights.lastInteraction.when).toLocaleDateString()} • ${insights.lastInteraction.type} • ${insights.lastInteraction.subject ?? "(no subject)"}`
                 : "Awaiting analysis."}
             </p>
           </Section>
@@ -307,7 +311,6 @@ export default function AssistantPanel({
                 <li key={a.id} className="text-sm">
                   <span className="font-medium">{a.title}</span>
                   <span className="text-neutral-500"> — {a.rationale}</span>
-                  {a.dueDate ? <span className="ml-2 text-neutral-400">(Due {a.dueDate})</span> : null}
                 </li>
               ))}
               {(!insights?.recommendedActions || insights.recommendedActions.length === 0) && (

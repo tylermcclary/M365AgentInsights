@@ -14,7 +14,7 @@ export type Insight = {
 
 export type Communication = {
   id: string;
-  type: "email" | "call" | "meeting";
+  type: "email" | "call" | "meeting" | "calendar" | "teams";
   from: string;
   subject?: string;
   body?: string;

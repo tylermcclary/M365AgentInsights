@@ -152,7 +152,7 @@ export default function DemoControlPanel() {
               <div className="space-y-2">
                 <div><span className="font-semibold">Summary:</span> {insights.summary.text}</div>
                 <div className="text-xs text-neutral-500">Topics: {insights.summary.topics.join(", ") || "—"} • Sentiment: {insights.summary.sentiment}</div>
-                <div className="text-xs text-neutral-500">Last: {insights.lastInteraction ? `${new Date(insights.lastInteraction.when).toLocaleString()} • ${insights.lastInteraction.type}` : "—"}</div>
+                <div className="text-xs text-neutral-500">Last: {insights.lastInteraction ? `${new Date(insights.lastInteraction.when).toLocaleDateString()} • ${insights.lastInteraction.type}` : "—"}</div>
               </div>
             ) : (
               <div className="text-neutral-500">No insights yet. Run an action above.</div>
@@ -178,7 +178,7 @@ export default function DemoControlPanel() {
               <ul className="space-y-2">
                 {timeline.map(t => (
                   <li key={t.id} className="flex items-start gap-2">
-                    <span className="text-[11px] text-neutral-500 w-36 shrink-0">{new Date(t.timestamp).toLocaleString()}</span>
+                    <span className="text-[11px] text-neutral-500 w-36 shrink-0">{new Date(t.timestamp).toLocaleDateString()}</span>
                     <span className="text-[11px] font-medium w-20 shrink-0">{t.type}</span>
                     <span className="line-clamp-1">{t.subject ?? "(no subject)"}</span>
                   </li>

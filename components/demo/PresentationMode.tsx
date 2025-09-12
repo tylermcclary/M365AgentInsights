@@ -121,7 +121,7 @@ export default function PresentationMode() {
                   </select>
                 </div>
                 <div className="text-xs text-neutral-600">{client?.goals.join(", ")}</div>
-                <div className="text-xs text-neutral-600">Risk: {client?.riskTolerance} • Portfolio: ${client?.portfolioSizeUSD.toLocaleString?.()}</div>
+                <div className="text-xs text-neutral-600">Risk: {client?.riskTolerance} • Portfolio: ${client?.portfolioSizeUSD?.toLocaleString?.() || '0'}</div>
               </div>
             </div>
             <div className="border rounded p-3">

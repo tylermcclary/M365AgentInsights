@@ -30,8 +30,6 @@ import {
 } from "@fluentui/react-icons";
 import { clients, getCommunicationsByClient } from "@/data/sampleData";
 import AssistantPanel from "@/components/ai-agent/AssistantPanel";
-import ContextTrigger from "@/components/ai-agent/ContextTrigger";
-import { useEmailContext } from "@/hooks/useEmailContext";
 
 // Outlook theme colors
 const outlookTheme = {
@@ -118,8 +116,8 @@ export default function OutlookWithAI() {
         from: selectedClient.name,
         to: 'advisor@firm.com',
         subject: e.subject || '(No subject)',
-        body: e.body || '',
-        timestamp: e.start.dateTime,
+        body: e.notes || '',
+        timestamp: e.start,
         clientId: e.clientId,
       })),
       ...comms.chats.map(c => ({
@@ -128,8 +126,8 @@ export default function OutlookWithAI() {
         from: selectedClient.name,
         to: 'advisor@firm.com',
         subject: 'Teams Message',
-        body: c.message,
-        timestamp: c.timestamp,
+        body: c.content,
+        timestamp: c.createdDateTime,
         clientId: c.clientId,
       }))
     ];
@@ -138,10 +136,8 @@ export default function OutlookWithAI() {
 
   // Generate email items from sample data
   const emailItems: EmailItem[] = useMemo(() => {
-    console.log("OutlookWithAI - emailItems useMemo:", { selectedClient: selectedClient?.id, selectedClientName: selectedClient?.name });
     if (!selectedClient) return [];
     const comms = getCommunicationsByClient(selectedClient.id);
-    console.log("OutlookWithAI - communications:", { emailsCount: comms.emails.length, eventsCount: comms.events.length, chatsCount: comms.chats.length });
     const emails = comms.emails.map((e, idx) => ({
       id: e.id,
       sender: selectedClient.name,
@@ -149,13 +145,12 @@ export default function OutlookWithAI() {
       subject: e.subject || "(No subject)",
       preview: e.body.slice(0, 100) + "...",
       body: e.body,
-      receivedTime: new Date(e.receivedDateTime).toLocaleString(),
+      receivedTime: new Date(e.receivedDateTime).toISOString(),
       isRead: idx > 2, // First few are unread
       isFlagged: idx === 0,
       hasAttachments: idx % 3 === 0,
       folder: "inbox",
     }));
-    console.log("OutlookWithAI - generated emails:", emails.length, "items");
     return emails;
   }, [selectedClient]);
 
@@ -173,14 +168,6 @@ export default function OutlookWithAI() {
           email.preview.toLowerCase().includes(query)
       );
     }
-    
-    console.log("OutlookWithAI - filteredEmails:", { 
-      emailItemsCount: emailItems.length, 
-      selectedFolder, 
-      folderFilteredCount: emailItems.filter(email => email.folder === selectedFolder).length,
-      searchQuery, 
-      finalFilteredCount: filtered.length 
-    });
     
     return filtered;
   }, [emailItems, searchQuery, selectedFolder]);
@@ -349,7 +336,10 @@ export default function OutlookWithAI() {
                 } 
               }}
             >
-              {new Date(item.receivedTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {(() => {
+                const date = new Date(item.receivedTime);
+                return `${date.toLocaleDateString('en-US', { month: 'short' })} ${date.getDate()}`;
+              })()}
             </Text>
           </div>
           
@@ -498,10 +488,6 @@ export default function OutlookWithAI() {
                     borderBottom: `1px solid ${outlookTheme.borderColor}`,
                   },
                 }}
-                onRenderRow={(props) => {
-                  console.log("DetailsList onRenderRow:", props?.item?.subject);
-                  return props?.defaultRender?.(props);
-                }}
               />
             </Stack>
 
@@ -572,7 +558,6 @@ export default function OutlookWithAI() {
             </Stack>
 
             {/* AI Insights Panel - Inline */}
-            {console.log("Rendering AI panel - isAIPanelOpen:", isAIPanelOpen)}
             {isAIPanelOpen && (
               <Stack styles={{ root: { width: 400, borderLeft: `1px solid ${outlookTheme.borderColor}`, backgroundColor: outlookTheme.contentBackground } }}>
                 {/* AI Panel Header */}
@@ -596,17 +581,6 @@ export default function OutlookWithAI() {
                 
                 {/* AI Panel Content */}
                 <div style={{ flex: 1, overflow: "auto" }}>
-                  {selectedEmail && (
-                    <ContextTrigger
-                      emailContext={{
-                        sender: selectedEmail.sender,
-                        senderEmail: selectedEmail.senderEmail,
-                        subject: selectedEmail.subject,
-                        body: selectedEmail.body,
-                        receivedDateTime: selectedEmail.receivedTime,
-                      }}
-                    />
-                  )}
                   <AssistantPanel
                     email={selectedEmail ? {
                       sender: selectedEmail.sender,
@@ -619,11 +593,6 @@ export default function OutlookWithAI() {
                     clientEmail={selectedClient?.email}
                     onCollapse={() => setIsAIPanelOpen(false)}
                   />
-                  {console.log("OutlookWithAI - Passing to AssistantPanel:", {
-                    email: selectedEmail?.subject,
-                    communicationsCount: communicationsArray.length,
-                    clientEmail: selectedClient?.email
-                  })}
                 </div>
               </Stack>
             )}

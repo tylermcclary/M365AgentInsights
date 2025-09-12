@@ -101,7 +101,7 @@ export default function OutlookShell() {
       sender: selectedClient.name,
       subject: e.subject || "(No subject)",
       preview: e.body.slice(0, 100) + "...",
-      receivedTime: new Date(e.receivedDateTime).toLocaleString(),
+      receivedTime: new Date(e.receivedDateTime).toISOString(),
       isRead: idx > 2, // First few are unread
       isFlagged: idx === 0,
       hasAttachments: idx % 3 === 0,
@@ -279,7 +279,10 @@ export default function OutlookShell() {
                 } 
               }}
             >
-              {new Date(item.receivedTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {(() => {
+                const date = new Date(item.receivedTime);
+                return `${date.toLocaleDateString('en-US', { month: 'short' })} ${date.getDate()}`;
+              })()}
             </Text>
           </div>
           

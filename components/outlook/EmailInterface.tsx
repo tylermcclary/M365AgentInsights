@@ -178,7 +178,7 @@ export default function EmailInterface() {
     // In a real app, send via Graph. For POC, add to Sent.
     const now = new Date().toISOString();
     const sent: Email = {
-      id: Math.random().toString(36).slice(2),
+      id: `sent-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       sender: "You",
       subject: compose.subject || "(No subject)",
       preview: compose.body.slice(0, 120),
