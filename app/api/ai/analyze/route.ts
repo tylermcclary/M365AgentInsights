@@ -14,8 +14,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Analyze communications using the AI processing system
-    const insights = await analyzeClientCommunicationsServer(clientEmail, communications);
+    // Get the current AI mode from the request or use default
+    const aiMode = mode || 'mock';
+    
+    // Analyze communications using the AI processing system with the specified mode
+    const insights = await analyzeClientCommunicationsServer(clientEmail, communications, aiMode);
 
     return NextResponse.json({
       success: true,

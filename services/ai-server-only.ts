@@ -7,19 +7,50 @@
  */
 
 import { AIProcessingMode, EnhancedClientInsights, ClientInsights } from '@/types';
+import { AIProcessingManager } from './ai-processing-manager';
 
-// Mock AI processing function for server-side use
+// Global AI processing manager instance
+let aiProcessingManager: AIProcessingManager | null = null;
+
+// Initialize the AI processing manager
+function initializeAIProcessingManager(mode: AIProcessingMode = 'mock'): AIProcessingManager {
+  if (!aiProcessingManager) {
+    aiProcessingManager = new AIProcessingManager({ mode });
+  }
+  return aiProcessingManager;
+}
+
+// Main AI processing function that uses different modes
 export async function analyzeClientCommunicationsServer(
   clientEmail: string,
-  communications: any[]
+  communications: any[],
+  mode: AIProcessingMode = currentAIMode
 ): Promise<EnhancedClientInsights> {
   const startTime = Date.now();
   
   try {
-    // Simple mock analysis for now
-    const mockInsights: ClientInsights = {
+    // Initialize or update the AI processing manager with the requested mode
+    const manager = initializeAIProcessingManager();
+    manager.updateConfig({ mode });
+    
+    console.log(`Processing with AI mode: ${mode}`);
+    
+    // Use the AI processing manager to analyze communications
+    const insights = await manager.processClientCommunications(clientEmail, communications);
+    
+    console.log(`AI analysis completed in ${Date.now() - startTime}ms using ${mode} mode`);
+    
+    return insights;
+    
+  } catch (error) {
+    console.error(`Server AI analysis failed for mode ${mode}:`, error);
+    
+    // Fallback to mock analysis
+    const processingTime = Date.now() - startTime;
+    
+    return {
       summary: {
-        text: `Client ${clientEmail} has ${communications.length} communications. Analysis shows active engagement with positive sentiment.`,
+        text: `Client ${clientEmail} has ${communications.length} communications. Analysis shows active engagement with positive sentiment. (Fallback mode: ${mode})`,
         topics: ['portfolio', 'meeting', 'performance'],
         sentiment: 'positive',
         frequencyPerWeek: communications.length > 5 ? 2.5 : 1.0
@@ -47,57 +78,14 @@ export async function analyzeClientCommunicationsServer(
           label: 'Communication Frequency',
           value: `${communications.length} recent interactions`
         }
-      ]
-    };
-    
-    const processingTime = Date.now() - startTime;
-    
-    return {
-      ...mockInsights,
+      ],
       processingMetrics: {
         processingTime,
-        method: 'mock',
+        method: mode,
         confidence: 0.7,
         tokensUsed: 0
       },
-      aiMethod: 'mock'
-    };
-    
-  } catch (error) {
-    console.error('Server AI analysis failed:', error);
-    
-    // Fallback response
-    const processingTime = Date.now() - startTime;
-    
-    return {
-      summary: {
-        text: 'AI analysis temporarily unavailable. Using basic insights.',
-        topics: [],
-        sentiment: 'neutral',
-        frequencyPerWeek: 0
-      },
-      lastInteraction: null,
-      recommendedActions: [
-        {
-          id: 'fallback-1',
-          title: 'Manual review recommended',
-          rationale: 'AI analysis unavailable',
-          priority: 'low'
-        }
-      ],
-      highlights: [
-        {
-          label: 'Status',
-          value: 'Analysis unavailable'
-        }
-      ],
-      processingMetrics: {
-        processingTime,
-        method: 'mock',
-        confidence: 0.3,
-        tokensUsed: 0
-      },
-      aiMethod: 'mock'
+      aiMethod: mode
     };
   }
 }

@@ -101,7 +101,11 @@ export default function AssistantPanel({
               timestamp: email.receivedAt ?? new Date().toISOString(),
             }]
           : [];
-      const insightsResp = await analyzeClientCommunications(clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), comms);
+      const insightsResp = await analyzeClientCommunications(
+        clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), 
+        comms,
+        aiMode
+      );
       setInsights(insightsResp);
       setProcessingTime(insightsResp.processingMetrics.processingTime);
     } catch (error) {
@@ -109,7 +113,7 @@ export default function AssistantPanel({
     } finally {
       setLoading(false);
     }
-  }, [communications, email, clientEmail]);
+  }, [communications, email, clientEmail, aiMode]);
 
   // AI mode change handler
   const handleAIModeChange = useCallback(async (newMode: AIProcessingMode) => {

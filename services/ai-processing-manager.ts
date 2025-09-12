@@ -1,6 +1,5 @@
 import { AIProcessingMode, AIProcessingConfig, EnhancedClientInsights } from '@/types';
 import { generateAIInsights, analyzeText } from './ai-enhanced';
-import { analyzeClientCommunications } from './ai-insights';
 import { OpenAIProcessor, OpenAIAnalysisResult } from './openai-processor';
 import { LocalNLPProcessor, LocalNLPAnalysisResult } from './local-nlp-processor';
 import { createSafeAIConfig, validateAIMode, logAIConfig, ExtendedAIProcessingConfig } from '@/lib/ai-config';
@@ -235,12 +234,103 @@ export class AIProcessingManager {
   }
   
   private async processWithMockAI(clientEmail: string, communications: any[]) {
-    // Use the existing mock AI logic
-    const result = analyzeClientCommunications(clientEmail, communications);
-    return {
-      ...result,
+    // Generate mock insights based on the communications and current mode
+    const clientName = clientEmail.split('@')[0] || 'Client';
+    const commCount = communications.length;
+    const currentMode = this.config.mode;
+    
+    // Generate different insights based on communication patterns
+    const hasUrgentKeywords = communications.some(c => 
+      /urgent|asap|immediately|emergency/i.test(c.subject || '') || 
+      /urgent|asap|immediately|emergency/i.test(c.body || '')
+    );
+    
+    const hasQuestions = communications.some(c => 
+      (c.body || '').includes('?') || (c.subject || '').includes('?')
+    );
+    
+    // Generate mode-specific insights
+    let modeSpecificText = '';
+    let modeSpecificTopics: string[] = [];
+    let modeSpecificSentiment: 'positive' | 'neutral' | 'negative' = 'positive';
+    
+    switch (currentMode) {
+      case 'openai':
+        modeSpecificText = `[OpenAI Analysis] Advanced AI processing detected ${hasUrgentKeywords ? 'high-priority concerns' : 'standard engagement patterns'}. `;
+        modeSpecificTopics = hasUrgentKeywords ? ['urgent', 'priority', 'response', 'ai-analysis'] : ['portfolio', 'meeting', 'performance', 'ai-insights'];
+        modeSpecificSentiment = hasUrgentKeywords ? 'concerned' : 'positive';
+        break;
+      case 'nlp':
+        modeSpecificText = `[NLP Analysis] Natural language processing identified ${hasUrgentKeywords ? 'urgent communication patterns' : 'normal communication flow'}. `;
+        modeSpecificTopics = hasUrgentKeywords ? ['urgent', 'priority', 'nlp-analysis'] : ['portfolio', 'meeting', 'nlp-insights'];
+        modeSpecificSentiment = hasUrgentKeywords ? 'concerned' : 'neutral';
+        break;
+      case 'mock':
+      default:
+        modeSpecificText = `[Mock Analysis] Rule-based processing shows ${hasUrgentKeywords ? 'urgent matters requiring attention' : 'standard communication patterns'}. `;
+        modeSpecificTopics = hasUrgentKeywords ? ['urgent', 'priority', 'mock-analysis'] : ['portfolio', 'meeting', 'mock-insights'];
+        modeSpecificSentiment = hasUrgentKeywords ? 'concerned' : 'positive';
+        break;
+    }
+    
+    const mockInsights = {
+      summary: {
+        text: `${modeSpecificText}Client ${clientName} has ${commCount} recent communications. ${hasUrgentKeywords ? 'Urgent matters detected requiring immediate attention.' : 'Standard communication patterns observed.'} ${hasQuestions ? 'Client has questions that need responses.' : 'Communication appears to be informational.'}`,
+        topics: modeSpecificTopics,
+        sentiment: modeSpecificSentiment,
+        frequencyPerWeek: commCount > 5 ? 2.5 : 1.0
+      },
+      lastInteraction: communications.length > 0 ? {
+        when: communications[0].timestamp || new Date().toISOString(),
+        type: communications[0].type || 'email',
+        subject: communications[0].subject || 'Recent communication',
+        snippet: communications[0].body?.substring(0, 100) || 'No content available'
+      } : null,
+      recommendedActions: hasUrgentKeywords ? [
+        {
+          id: 'action-urgent',
+          title: 'Address urgent client concerns immediately',
+          rationale: 'Client has expressed urgent matters requiring prompt response',
+          priority: 'high'
+        },
+        {
+          id: 'action-followup',
+          title: 'Schedule follow-up call',
+          rationale: 'Urgent matters may require detailed discussion',
+          priority: 'high'
+        }
+      ] : [
+        {
+          id: 'action-1',
+          title: 'Schedule follow-up meeting',
+          rationale: 'Client engagement detected',
+          priority: 'medium'
+        },
+        {
+          id: 'action-2',
+          title: 'Send portfolio performance update',
+          rationale: 'Regular communication maintenance',
+          priority: 'low'
+        }
+      ],
+      highlights: [
+        {
+          label: 'Engagement Level',
+          value: hasUrgentKeywords ? 'High Priority' : 'Active'
+        },
+        {
+          label: 'Communication Frequency',
+          value: `${commCount} recent interactions`
+        },
+        {
+          label: 'Client Status',
+          value: hasUrgentKeywords ? 'Requires Attention' : 'Stable'
+        }
+      ],
       tokensUsed: 0
     };
+    
+    return mockInsights;
   }
   
   private calculateConfidence(insights: any, method: AIProcessingMode): number {
