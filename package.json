@@ -15,12 +15,17 @@
     "@fluentui/react-components": "^9.70.0",
     "@fluentui/react-icons": "^2.0.309",
     "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@types/natural": "^5.1.5",
+    "compromise": "^14.14.4",
     "date-fns": "^4.1.0",
     "isomorphic-fetch": "^3.0.0",
     "lucide-react": "^0.542.0",
+    "natural": "^8.1.0",
     "next": "15.5.2",
+    "openai": "^5.20.1",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "sentiment": "^5.0.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

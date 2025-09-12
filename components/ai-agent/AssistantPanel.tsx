@@ -14,9 +14,17 @@ import {
   Star,
   ChevronDown,
   ChevronRight,
+  Settings,
 } from "lucide-react";
-import { analyzeClientCommunications, type ClientInsights, type Communication } from "@/services/ai-insights";
+import { 
+  analyzeClientCommunications, 
+  switchAIMode, 
+  getCurrentAIMode,
+  type ClientInsights, 
+  type Communication 
+} from "@/services/ai-insights";
 import { subscribeContext } from "@/services/contextAnalyzer";
+import { type AIProcessingMode, type EnhancedClientInsights } from "@/types";
 import Tooltip from "@/components/ui/Tooltip";
 import Button from "@/components/ui/Button";
 
@@ -59,31 +67,54 @@ export default function AssistantPanel({
     highlights: false,
   });
 
-  const [insights, setInsights] = useState<ClientInsights | null>(null);
+  const [insights, setInsights] = useState<EnhancedClientInsights | null>(null);
+  const [aiMode, setAIMode] = useState<AIProcessingMode>('mock');
+  const [processingTime, setProcessingTime] = useState<number | null>(null);
 
   const clientDisplay = useMemo(() => email?.sender ?? "Client", [email?.sender]);
 
+  // Initialize AI mode
+  useEffect(() => {
+    setAIMode(getCurrentAIMode());
+  }, []);
+
   const analyze = useCallback(async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 300));
-    const comms: Communication[] = (communications && communications.length > 0)
-      ? communications
-      : email
-        ? [{
-            id: email.id ?? "selected",
-            type: "email",
-            from: email.senderEmail ?? email.sender,
-            subject: email.subject,
-            body: email.body,
-            timestamp: email.receivedAt ?? new Date().toISOString(),
-          }]
-        : [];
-    console.log("Analyzing with communications:", comms.length, "items", comms);
-    const insightsResp = analyzeClientCommunications(clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), comms);
-    console.log("Analysis result:", insightsResp);
-    setInsights(insightsResp);
-    setLoading(false);
+    try {
+      const comms: Communication[] = (communications && communications.length > 0)
+        ? communications
+        : email
+          ? [{
+              id: email.id ?? "selected",
+              type: "email",
+              from: email.senderEmail ?? email.sender,
+              subject: email.subject,
+              body: email.body,
+              timestamp: email.receivedAt ?? new Date().toISOString(),
+            }]
+          : [];
+      console.log("Analyzing with communications:", comms.length, "items", comms);
+      const insightsResp = await analyzeClientCommunications(clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), comms);
+      console.log("Analysis result:", insightsResp);
+      setInsights(insightsResp);
+      setProcessingTime(insightsResp.processingMetrics.processingTime);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [communications, email, clientEmail]);
+
+  // AI mode change handler
+  const handleAIModeChange = useCallback((newMode: AIProcessingMode) => {
+    setAIMode(newMode);
+    switchAIMode(newMode);
+    
+    // Optionally re-analyze current client with new mode
+    if (clientEmail && communications && communications.length > 0) {
+      analyze();
+    }
+  }, [clientEmail, communications, analyze]);
 
   // Auto-analyze when communications are available
   useEffect(() => {
@@ -99,7 +130,18 @@ export default function AssistantPanel({
     const unsub = subscribeContext(e => {
       const key = (clientEmail ?? email?.senderEmail ?? email?.sender ?? "").toLowerCase();
       if (!key || e.clientEmail.toLowerCase() === key) {
-        setInsights(e.insights);
+        // Convert ClientInsights to EnhancedClientInsights for compatibility
+        const enhancedInsights: EnhancedClientInsights = {
+          ...e.insights,
+          processingMetrics: {
+            processingTime: 0,
+            method: 'mock' as AIProcessingMode,
+            confidence: 0.5,
+            tokensUsed: 0
+          },
+          aiMethod: 'mock' as AIProcessingMode
+        };
+        setInsights(enhancedInsights);
       }
     });
     return () => {
@@ -152,6 +194,37 @@ export default function AssistantPanel({
                 <Button onClick={analyze} disabled={loading} size="sm" leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}>{loading ? "Analyzing..." : "Run analysis"}</Button>
               </span>
             </Tooltip>
+          </div>
+
+          {/* AI Mode Selector */}
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Settings className="h-4 w-4 text-neutral-600" />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                AI Processing Mode:
+              </label>
+            </div>
+            <select
+              value={aiMode}
+              onChange={(e) => handleAIModeChange(e.target.value as AIProcessingMode)}
+              disabled={loading}
+              className="block w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="mock">Mock AI (Fast, Rule-based)</option>
+              <option value="nlp">Enhanced NLP (Local Processing)</option>
+              <option value="openai">Advanced AI (GPT-4)</option>
+            </select>
+            
+            {processingTime && (
+              <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                Last analysis: {processingTime}ms ({aiMode} mode)
+                {insights?.processingMetrics.confidence && (
+                  <span className="ml-2">
+                    • {Math.round(insights.processingMetrics.confidence * 100)}% confidence
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Client Summary */}

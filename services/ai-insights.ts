@@ -1,5 +1,9 @@
 import { addDays, differenceInCalendarWeeks, format } from "date-fns";
 import type { GraphMailItem, GraphCalendarEvent } from "@/types";
+import { generateAIInsights, type AIInsight } from "./ai-enhanced";
+import { AIProcessingManager } from './ai-processing-manager';
+import { AIProcessingMode, EnhancedClientInsights } from '@/types';
+import { getBestAvailableMode, getConfigSummary } from '@/lib/ai-config';
 
 // Existing exports used by UI
 export type Insight = {
@@ -39,6 +43,32 @@ export function generateInsightsFromGraph(
   }
 
   return insights;
+}
+
+/**
+ * Enhanced insights generation using AI capabilities
+ * Falls back to basic insights if AI is not available
+ */
+export async function generateEnhancedInsights(
+  emails: GraphMailItem[],
+  events: GraphCalendarEvent[]
+): Promise<Insight[]> {
+  try {
+    // Try to generate AI-enhanced insights
+    const aiInsights = await generateAIInsights(emails, events);
+    
+    // Convert AI insights to the standard Insight format
+    return aiInsights.map(aiInsight => ({
+      id: aiInsight.id,
+      type: aiInsight.type as "task" | "reminder" | "summary",
+      title: aiInsight.title,
+      detail: aiInsight.detail,
+    }));
+  } catch (error) {
+    console.warn('AI insights unavailable, falling back to basic insights:', error);
+    // Fall back to basic insights generation
+    return generateInsightsFromGraph(emails, events);
+  }
 }
 
 // ==============================
@@ -250,19 +280,88 @@ export function extractClientHighlights(communications: any[]): ClientHighlight[
   }
 }
 
-export function analyzeClientCommunications(clientEmail: string, communications: any[]): ClientInsights {
+// ==============================
+// Hybrid AI Processing Integration
+// ==============================
+
+// Global AI processing manager instance
+let aiProcessingManager: AIProcessingManager | null = null;
+
+// Initialize the AI processing manager
+export const initializeAIProcessing = (mode?: AIProcessingMode) => {
+  const configSummary = getConfigSummary();
+  
+  const config = {
+    mode: mode || getBestAvailableMode(),
+    fallbackToMock: true,
+    timeout: 15000,
+    maxRetries: 2
+  };
+  
+  aiProcessingManager = new AIProcessingManager(config);
+  
+  console.log('🤖 AI Processing Manager initialized with:', {
+    mode: config.mode,
+    availableModes: configSummary.availableModes,
+    openaiEnabled: configSummary.openaiEnabled,
+    nlpEnabled: configSummary.nlpEnabled
+  });
+  
+  return aiProcessingManager;
+};
+
+// Switch AI processing mode
+export const switchAIMode = (mode: AIProcessingMode) => {
+  if (aiProcessingManager) {
+    aiProcessingManager.updateConfig({ mode });
+  } else {
+    initializeAIProcessing(mode);
+  }
+};
+
+// Main analysis function that now uses hybrid processing
+export const analyzeClientCommunications = async (
+  clientEmail: string,
+  communications: any[]
+): Promise<EnhancedClientInsights> => {
+  if (!aiProcessingManager) {
+    aiProcessingManager = initializeAIProcessing();
+  }
+  
   try {
-    console.log("analyzeClientCommunications - input:", communications?.length, "items, clientEmail:", clientEmail);
+    return await aiProcessingManager.processClientCommunications(clientEmail, communications);
+  } catch (error) {
+    console.error('AI analysis failed:', error);
+    
+    // Fallback to your existing mock analysis if everything fails
+    const mockInsights = await analyzeMockInsights(communications);
+    return {
+      ...mockInsights,
+      processingMetrics: {
+        processingTime: 100,
+        method: 'mock' as AIProcessingMode,
+        confidence: 0.5,
+        tokensUsed: 0
+      },
+      aiMethod: 'mock' as AIProcessingMode
+    };
+  }
+};
+
+// Keep your existing mock analysis function for fallbacks
+export const analyzeMockInsights = async (communications: any[]): Promise<ClientInsights> => {
+  try {
+    console.log("analyzeMockInsights - input:", communications?.length, "items");
     // Since communications are already filtered for the specific client, don't filter again
     const items = normalizeCommunications(communications);
-    console.log("analyzeClientCommunications - normalized items:", items?.length);
+    console.log("analyzeMockInsights - normalized items:", items?.length);
     const summary = generateClientSummary(items);
     const lastInteraction = identifyLastInteraction(items);
     const recommendedActions = suggestNextBestActions({ communications: items });
     const highlights = extractClientHighlights(items);
     return { summary, lastInteraction, recommendedActions, highlights };
   } catch (error) {
-    console.log("analyzeClientCommunications - error:", error);
+    console.log("analyzeMockInsights - error:", error);
     return {
       summary: { text: "No summary available.", topics: [], sentiment: "neutral", frequencyPerWeek: 0 },
       lastInteraction: null,
@@ -272,6 +371,16 @@ export function analyzeClientCommunications(clientEmail: string, communications:
       highlights: [{ label: "Info", value: "No highlights available" }],
     };
   }
-}
+};
+
+// Utility function to get current AI mode
+export const getCurrentAIMode = (): AIProcessingMode => {
+  return aiProcessingManager?.getCurrentConfig().mode || 'mock';
+};
+
+// Utility function to get processing manager
+export const getAIProcessingManager = (): AIProcessingManager | null => {
+  return aiProcessingManager;
+};
 
 
