@@ -138,8 +138,10 @@ export default function OutlookWithAI() {
 
   // Generate email items from sample data
   const emailItems: EmailItem[] = useMemo(() => {
+    console.log("OutlookWithAI - emailItems useMemo:", { selectedClient: selectedClient?.id, selectedClientName: selectedClient?.name });
     if (!selectedClient) return [];
     const comms = getCommunicationsByClient(selectedClient.id);
+    console.log("OutlookWithAI - communications:", { emailsCount: comms.emails.length, eventsCount: comms.events.length, chatsCount: comms.chats.length });
     const emails = comms.emails.map((e, idx) => ({
       id: e.id,
       sender: selectedClient.name,
@@ -153,19 +155,35 @@ export default function OutlookWithAI() {
       hasAttachments: idx % 3 === 0,
       folder: "inbox",
     }));
+    console.log("OutlookWithAI - generated emails:", emails.length, "items");
     return emails;
   }, [selectedClient]);
 
   const filteredEmails = useMemo(() => {
-    if (!searchQuery) return emailItems;
-    const query = searchQuery.toLowerCase();
-    return emailItems.filter(
-      email =>
-        email.sender.toLowerCase().includes(query) ||
-        email.subject.toLowerCase().includes(query) ||
-        email.preview.toLowerCase().includes(query)
-    );
-  }, [emailItems, searchQuery]);
+    // First filter by folder
+    let filtered = emailItems.filter(email => email.folder === selectedFolder);
+    
+    // Then filter by search query if provided
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        email =>
+          email.sender.toLowerCase().includes(query) ||
+          email.subject.toLowerCase().includes(query) ||
+          email.preview.toLowerCase().includes(query)
+      );
+    }
+    
+    console.log("OutlookWithAI - filteredEmails:", { 
+      emailItemsCount: emailItems.length, 
+      selectedFolder, 
+      folderFilteredCount: emailItems.filter(email => email.folder === selectedFolder).length,
+      searchQuery, 
+      finalFilteredCount: filtered.length 
+    });
+    
+    return filtered;
+  }, [emailItems, searchQuery, selectedFolder]);
 
   // CommandBar items
   const commandBarItems: ICommandBarItemProps[] = [
@@ -479,6 +497,10 @@ export default function OutlookWithAI() {
                     backgroundColor: outlookTheme.contentBackground,
                     borderBottom: `1px solid ${outlookTheme.borderColor}`,
                   },
+                }}
+                onRenderRow={(props) => {
+                  console.log("DetailsList onRenderRow:", props?.item?.subject);
+                  return props?.defaultRender?.(props);
                 }}
               />
             </Stack>
