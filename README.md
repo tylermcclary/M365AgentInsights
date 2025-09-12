@@ -1,4 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# M365 Agent Insights
+
+A Next.js application that provides AI-powered insights for financial advisors using Microsoft 365 data integration.
+
+## Features
+
+- 🤖 **AI-Powered Analysis**: Advanced AI processing with OpenAI, local NLP, and mock modes
+- 📧 **Outlook Integration**: Mock email interface with sample client data
+- 🎯 **Client Insights**: AI-generated insights for financial advisor client relationships
+- 🔄 **Hybrid AI System**: Three-tier processing (OpenAI, Local NLP, Mock) with fallback mechanisms
+- 🎨 **Modern UI**: Fluent UI components for authentic Microsoft 365 experience
+
+## Demo Mode
+
+For demonstrations and testing, you can bypass authentication:
+
+1. Create a `.env.local` file in the project root
+2. Add the following line:
+   ```
+   NEXT_PUBLIC_BYPASS_AUTH=true
+   ```
+3. Run the application - it will load directly to the mock Outlook interface
 
 ## Getting Started
 
