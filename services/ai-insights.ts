@@ -92,13 +92,14 @@ const TOPIC_KEYWORDS: Record<string, RegExp> = {
   portfolio: /(portfolio|allocation|rebalance|holdings)/i,
   meeting: /(meet|call|schedule|zoom|teams)/i,
   performance: /(performance|returns|benchmark|alpha|beta)/i,
-  risk: /(risk|volatility|drawdown|hedge)/i,
+  risk: /(risk|volatility|drawdown|hedge|market drop|crash|anxiety|worried|concerned)/i,
   fees: /(fee|billing|invoice|cost)/i,
   goals: /(goal|retirement|college|house|wedding|vacation)/i,
+  market_anxiety: /(market crash|market drop|worried|anxious|nervous|panic|can't afford|move to cash)/i,
 };
 
-const POSITIVE_WORDS = /(thanks|great|appreciate|good|pleased|glad|happy|excellent)/i;
-const NEGATIVE_WORDS = /(concern|issue|problem|delay|bad|unhappy|angry|frustrated)/i;
+const POSITIVE_WORDS = /(thanks|great|appreciate|good|pleased|glad|happy|excellent|pleased|excellent|outstanding|fantastic|wonderful|amazing)/i;
+const NEGATIVE_WORDS = /(concern|issue|problem|delay|bad|unhappy|angry|frustrated|worried|anxious|nervous|scared|afraid|panic|crash|drop|loss|lose|can't afford|volatility|uncertain|stress|pressure)/i;
 
 function safeText(...parts: Array<string | undefined>): string {
   return parts.filter(Boolean).join(" ");
@@ -173,8 +174,20 @@ export function suggestNextBestActions(clientData: any): NextBestAction[] {
     const communications = normalizeCommunications(clientData?.communications ?? []);
     const hasMeeting = communications.some(c => TOPIC_KEYWORDS.meeting.test(safeText(c.subject, c.body)));
     const hasRebalance = communications.some(c => TOPIC_KEYWORDS.portfolio.test(safeText(c.subject, c.body)));
+    const hasMarketAnxiety = communications.some(c => TOPIC_KEYWORDS.market_anxiety.test(safeText(c.subject, c.body)));
 
     const actions: NextBestAction[] = [];
+    
+    if (hasMarketAnxiety) {
+      actions.push({
+        id: "nba-anxiety",
+        title: "Schedule urgent risk tolerance review",
+        rationale: "Client expressed market anxiety and concerns about portfolio safety. Immediate reassurance and risk assessment needed.",
+        dueDate: format(addDays(new Date(), 1), "yyyy-MM-dd"),
+        priority: "high",
+      });
+    }
+    
     if (!hasMeeting) {
       actions.push({
         id: "nba-1",
@@ -215,6 +228,9 @@ export function extractClientHighlights(communications: any[]): ClientHighlight[
     const blob = items.map(i => safeText(i.subject, i.body)).join(" \n ");
     const highlights: ClientHighlight[] = [];
 
+    if (TOPIC_KEYWORDS.market_anxiety.test(blob)) {
+      highlights.push({ label: "Risk Profile", value: "Expressed market anxiety and safety concerns" });
+    }
     if (TOPIC_KEYWORDS.goals.test(blob)) {
       highlights.push({ label: "Investment Goal", value: "Long-term retirement planning" });
     }
@@ -236,15 +252,17 @@ export function extractClientHighlights(communications: any[]): ClientHighlight[
 
 export function analyzeClientCommunications(clientEmail: string, communications: any[]): ClientInsights {
   try {
-    const items = normalizeCommunications(communications).filter(c =>
-      safeText(c.from).toLowerCase().includes((clientEmail ?? "").toLowerCase()) || clientEmail === "*"
-    );
+    console.log("analyzeClientCommunications - input:", communications?.length, "items, clientEmail:", clientEmail);
+    // Since communications are already filtered for the specific client, don't filter again
+    const items = normalizeCommunications(communications);
+    console.log("analyzeClientCommunications - normalized items:", items?.length);
     const summary = generateClientSummary(items);
     const lastInteraction = identifyLastInteraction(items);
     const recommendedActions = suggestNextBestActions({ communications: items });
     const highlights = extractClientHighlights(items);
     return { summary, lastInteraction, recommendedActions, highlights };
-  } catch {
+  } catch (error) {
+    console.log("analyzeClientCommunications - error:", error);
     return {
       summary: { text: "No summary available.", topics: [], sentiment: "neutral", frequencyPerWeek: 0 },
       lastInteraction: null,
