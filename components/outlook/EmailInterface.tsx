@@ -21,10 +21,8 @@ import {
 import AssistantPanel from "@/components/ai-agent/AssistantPanel";
 import { clients, getCommunicationsByClient } from "@/data/sampleData";
 import ContextTrigger from "@/components/ai-agent/ContextTrigger";
-import { useEmailContext } from "@/hooks/useEmailContext";
 import Button from "@/components/ui/Button";
 import Tooltip from "@/components/ui/Tooltip";
-import NotificationToast, { type Toast } from "@/components/ui/NotificationToast";
 
 type Email = {
   id: string;
@@ -115,36 +113,38 @@ export default function EmailInterface() {
   const [isComposeOpen, setComposeOpen] = useState(false);
   const [compose, setCompose] = useState({ to: "", subject: "", body: "" });
   const [assistantOpen, setAssistantOpen] = useState(true);
-  const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id ?? "");
-  const [toast, setToast] = useState<Toast | null>(null);
 
-  // Load emails from sample data for the selected client (Inbox only for POC)
-  function loadClientEmails(clientId: string) {
-    const comms = getCommunicationsByClient(clientId);
-    const mapped: Email[] = comms.emails.map(e => ({
-      id: e.id,
-      sender: clients.find(c => c.id === clientId)?.name ?? "Client",
-      senderEmail: clients.find(c => c.id === clientId)?.email,
-      subject: e.subject,
-      preview: e.body.slice(0, 120),
-      timestamp: e.receivedDateTime,
-      body: e.body,
-      folder: "Inbox",
-    }));
+  // Load all emails from all clients
+  function loadAllEmails() {
+    const allClientEmails: Email[] = [];
+    
+    // Get emails from all clients
+    clients.forEach(client => {
+      const comms = getCommunicationsByClient(client.id);
+      const mapped: Email[] = comms.emails.map(e => ({
+        id: e.id,
+        sender: client.name,
+        senderEmail: client.email,
+        subject: e.subject,
+        preview: e.body.slice(0, 120),
+        timestamp: e.receivedDateTime,
+        body: e.body,
+        folder: "Inbox",
+      }));
+      allClientEmails.push(...mapped);
+    });
+    
     // Keep some existing Sent/Drafts examples from local sample for variety
     const extras = sampleEmails.filter(x => x.folder !== "Inbox");
-    const all = [...mapped, ...extras].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const all = [...allClientEmails, ...extras].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     setEmails(all);
     setSelectedId(all.find(e => e.folder === "Inbox")?.id ?? all[0]?.id ?? null);
   }
 
-  // Initialize from first client
+  // Initialize with all emails
   useMemo(() => {
-    if (selectedClientId) {
-      loadClientEmails(selectedClientId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedClientId]);
+    loadAllEmails();
+  }, []);
 
   const filtered = useMemo(() => {
     const byFolder = emails.filter(e => e.folder === activeFolder);
@@ -160,14 +160,6 @@ export default function EmailInterface() {
   }, [emails, activeFolder, query]);
 
   const selected = filtered.find(e => e.id === selectedId) ?? filtered[0] ?? null;
-  const context = useEmailContext(selected ? {
-    id: selected.id,
-    sender: selected.sender,
-    senderEmail: selected.senderEmail,
-    subject: selected.subject,
-    body: selected.body,
-    timestamp: selected.timestamp,
-  } : null);
 
   function openCompose() {
     setCompose({ to: "", subject: "", body: "" });
@@ -190,7 +182,7 @@ export default function EmailInterface() {
     setActiveFolder("Sent");
     setSelectedId(sent.id);
     setComposeOpen(false);
-    setToast({ id: "sent", type: "success", message: "Message added to Sent", durationMs: 2500 });
+    // Message added to Sent
   }
 
   return (
@@ -200,20 +192,6 @@ export default function EmailInterface() {
         <div className="flex items-center justify-between p-3 border-b">
           <div className="text-sm font-semibold">Mail</div>
           <Button size="sm" onClick={openCompose} leftIcon={<Plus className="h-4 w-4" />}>New</Button>
-        </div>
-        <div className="p-2 border-b">
-          <label className="block text-[11px] text-neutral-500 mb-1">Client</label>
-          <select
-            value={selectedClientId}
-            onChange={e => setSelectedClientId(e.target.value)}
-            className="w-full text-sm border rounded px-2 py-1 bg-white dark:bg-neutral-950"
-          >
-            {clients.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
           {folders.map(f => (
@@ -236,7 +214,7 @@ export default function EmailInterface() {
       </aside>
 
       {/* Email list + reading pane */}
-      <section className="flex-1 grid grid-rows-[auto,1fr] md:grid-cols-[360px_1fr]">
+      <section className="flex-1 grid grid-rows-[auto,1fr] md:grid-cols-[280px_1fr]">
         {/* Top bar (mobile) */}
         <div className="md:hidden flex items-center gap-2 p-2 border-b">
           <button
@@ -277,19 +255,17 @@ export default function EmailInterface() {
               <button
                 key={e.id}
                 onClick={() => setSelectedId(e.id)}
-                className={`w-full text-left px-3 py-3 border-b hover:bg-neutral-50 dark:hover:bg-neutral-900 ${
+                className={`w-full text-left px-2 py-2 border-b hover:bg-neutral-50 dark:hover:bg-neutral-900 ${
                   selectedId === e.id ? "bg-blue-50/60 dark:bg-neutral-900" : ""
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {e.starred ? <Star className="h-4 w-4 text-amber-500" /> : <span className="w-4" />}
-                    <div className="text-sm font-semibold line-clamp-1">{e.sender}</div>
-                  </div>
-                  <div className="text-xs text-neutral-500">{formatTime(e.timestamp)}</div>
+                <div className="flex items-start gap-1 mb-0.5">
+                  {e.starred && <Star className="h-4 w-4 text-amber-500 mt-0.5" />}
+                  <div className="text-sm font-semibold break-words">{e.sender}</div>
                 </div>
-                <div className="text-sm line-clamp-1">{e.subject}</div>
-                <div className="text-xs text-neutral-500 line-clamp-1">{e.preview}</div>
+                <div className="text-sm break-words mb-0.5">{e.subject}</div>
+                <div className="text-xs text-neutral-500">{formatTime(e.timestamp)}</div>
+                <div className="text-xs text-neutral-500 break-words mt-0.5">{e.preview}</div>
               </button>
             ))}
           </div>
@@ -305,6 +281,19 @@ export default function EmailInterface() {
                 <div>
                   <div className="text-sm text-neutral-500">{selected.sender}</div>
                   <h2 className="text-lg font-semibold">{selected.subject}</h2>
+                  <div className="text-xs text-neutral-500 mt-1">
+                    {(() => {
+                      const date = new Date(selected.timestamp);
+                      return date.toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                    })()}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="secondary" size="sm" leftIcon={<Reply className="h-4 w-4" />}>Reply</Button>
@@ -317,7 +306,10 @@ export default function EmailInterface() {
                   </Tooltip>
                 </div>
               </div>
-              <div className="px-4 py-3 text-sm whitespace-pre-wrap">
+              <div 
+                className="px-4 py-3 text-sm whitespace-pre-wrap"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {selected.body}
               </div>
               {selected.attachments && selected.attachments.length > 0 && (
@@ -343,14 +335,14 @@ export default function EmailInterface() {
             assistantOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
-          <ContextTrigger senderEmail={selected?.senderEmail ?? selected?.sender} communications={filtered.map(e => ({
-            id: e.id,
+          <ContextTrigger senderEmail={selected?.senderEmail ?? selected?.sender} communications={selected ? [{
+            id: selected.id,
             type: "email",
-            from: e.senderEmail ?? e.sender,
-            subject: e.subject,
-            body: e.body,
-            timestamp: e.timestamp,
-          }))} />
+            from: selected.senderEmail ?? selected.sender,
+            subject: selected.subject,
+            body: selected.body,
+            timestamp: selected.timestamp,
+          }] : []} />
           <AssistantPanel
             email={{
               id: selected?.id,
@@ -362,14 +354,42 @@ export default function EmailInterface() {
             }}
             defaultOpen={true}
             onCollapse={() => setAssistantOpen(false)}
-            communications={filtered.map(e => ({
-              id: e.id,
-              type: "email",
-              from: e.senderEmail ?? e.sender,
-              subject: e.subject,
-              body: e.body,
-              timestamp: e.timestamp,
-            }))}
+            communications={selected ? (() => {
+              // Find the client that matches the selected email's sender
+              const selectedClient = clients.find(client => 
+                client.name === selected.sender || client.email === selected.senderEmail
+              );
+              
+              if (!selectedClient) return [];
+              
+              const comms = getCommunicationsByClient(selectedClient.id);
+              return [
+                ...comms.emails.map(e => ({
+                  id: e.id,
+                  type: "email" as const,
+                  from: selectedClient.email,
+                  subject: e.subject,
+                  body: e.body,
+                  timestamp: e.receivedDateTime,
+                })),
+                ...comms.events.map(e => ({
+                  id: e.id,
+                  type: "calendar" as const,
+                  from: selectedClient.email,
+                  subject: e.subject,
+                  body: e.notes ?? "",
+                  timestamp: e.start,
+                })),
+                ...comms.chats.map(c => ({
+                  id: c.id,
+                  type: "teams" as const,
+                  from: selectedClient.email,
+                  subject: c.content.slice(0, 60),
+                  body: c.content,
+                  timestamp: c.createdDateTime,
+                }))
+              ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            })() : []}
             clientEmail={selected?.senderEmail ?? selected?.sender}
           />
         </div>
@@ -381,11 +401,9 @@ export default function EmailInterface() {
             {filtered.map(e => (
               <details key={e.id} className="group">
                 <summary className="px-3 py-3 hover:bg-neutral-50 cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold line-clamp-1">{e.sender}</div>
-                    <div className="text-xs text-neutral-500">{formatTime(e.timestamp)}</div>
-                  </div>
+                  <div className="text-sm font-semibold line-clamp-1">{e.sender}</div>
                   <div className="text-sm line-clamp-1">{e.subject}</div>
+                  <div className="text-xs text-neutral-500">{formatTime(e.timestamp)}</div>
                   <div className="text-xs text-neutral-500 line-clamp-1">{e.preview}</div>
                 </summary>
                 <div className="px-3 py-3 text-sm whitespace-pre-wrap">{e.body}</div>

@@ -15,15 +15,9 @@ import {
   IColumn,
   Selection,
   Text,
-  Separator,
   IconButton,
   SearchBox,
-  Panel,
-  PanelType,
   PrimaryButton,
-  DefaultButton,
-  Spinner,
-  SpinnerSize,
 } from "@fluentui/react";
 import {
   FlagRegular,
@@ -51,7 +45,7 @@ const stackStyles: IStackStyles = {
 
 const navigationStackStyles: IStackStyles = {
   root: {
-    width: 280,
+    width: 200,
     backgroundColor: outlookTheme.navigationBackground,
     borderRight: `1px solid ${outlookTheme.borderColor}`,
   },
@@ -88,18 +82,31 @@ type FolderKey = "inbox" | "sent" | "drafts" | "deleted" | "archive" | "flagged"
 export default function OutlookWithAI() {
   const [selectedFolder, setSelectedFolder] = useState<FolderKey>("inbox");
   const [selectedEmail, setSelectedEmail] = useState<EmailItem | null>(null);
-  const [isReadingPaneOpen, setIsReadingPaneOpen] = useState(true);
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id ?? "");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const selectedClient = useMemo(() => clients.find(c => c.id === selectedClientId), [selectedClientId]);
-
-  // Convert communications to flat array for AssistantPanel
+  // Convert communications to flat array for AssistantPanel - only from selected client
   const communicationsArray = useMemo(() => {
+    if (!selectedEmail) return [];
+    
+    // Find the client that matches the selected email's sender
+    const selectedClient = clients.find(client => 
+      client.name === selectedEmail.sender || client.email === selectedEmail.senderEmail
+    );
+    
     if (!selectedClient) return [];
+    
     const comms = getCommunicationsByClient(selectedClient.id);
-    const allComms = [
+    const clientComms: Array<{
+      id: string;
+      type: 'email' | 'calendar' | 'teams';
+      from: string;
+      to: string;
+      subject: string;
+      body: string;
+      timestamp: string;
+      clientId: string;
+    }> = [
       ...comms.emails.map(e => ({
         id: e.id,
         type: 'email' as const,
@@ -131,28 +138,36 @@ export default function OutlookWithAI() {
         clientId: c.clientId,
       }))
     ];
-    return allComms.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [selectedClient]);
+    
+    return clientComms.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [selectedEmail]);
 
-  // Generate email items from sample data
+  // Generate email items from all clients' sample data
   const emailItems: EmailItem[] = useMemo(() => {
-    if (!selectedClient) return [];
-    const comms = getCommunicationsByClient(selectedClient.id);
-    const emails = comms.emails.map((e, idx) => ({
-      id: e.id,
-      sender: selectedClient.name,
-      senderEmail: selectedClient.email,
-      subject: e.subject || "(No subject)",
-      preview: e.body.slice(0, 100) + "...",
-      body: e.body,
-      receivedTime: new Date(e.receivedDateTime).toISOString(),
-      isRead: idx > 2, // First few are unread
-      isFlagged: idx === 0,
-      hasAttachments: idx % 3 === 0,
-      folder: "inbox",
-    }));
-    return emails;
-  }, [selectedClient]);
+    const allEmails: EmailItem[] = [];
+    
+    // Get emails from all clients
+    clients.forEach(client => {
+      const comms = getCommunicationsByClient(client.id);
+      const emails = comms.emails.map((e, idx) => ({
+        id: e.id,
+        sender: client.name,
+        senderEmail: client.email,
+        subject: e.subject || "(No subject)",
+        preview: e.body.slice(0, 100) + "...",
+        body: e.body,
+        receivedTime: new Date(e.receivedDateTime).toISOString(),
+        isRead: true, // All emails are read
+        isFlagged: idx === 0,
+        hasAttachments: idx % 3 === 0,
+        folder: "inbox",
+      }));
+      allEmails.push(...emails);
+    });
+    
+    // Sort by newest to oldest (most recent first)
+    return allEmails.sort((a, b) => new Date(b.receivedTime).getTime() - new Date(a.receivedTime).getTime());
+  }, []);
 
   const filteredEmails = useMemo(() => {
     // First filter by folder
@@ -169,7 +184,8 @@ export default function OutlookWithAI() {
       );
     }
     
-    return filtered;
+    // Sort by newest to oldest (most recent first)
+    return filtered.sort((a, b) => new Date(b.receivedTime).getTime() - new Date(a.receivedTime).getTime());
   }, [emailItems, searchQuery, selectedFolder]);
 
   // CommandBar items
@@ -281,58 +297,75 @@ export default function OutlookWithAI() {
   // Email list columns - compact nested layout
   const emailColumns: IColumn[] = [
     {
-      key: "flag",
+      key: "status",
       name: "",
-      fieldName: "isFlagged",
-      minWidth: 20,
-      maxWidth: 20,
+      fieldName: "status",
+      minWidth: 24,
+      maxWidth: 24,
       onRender: (item: EmailItem) => (
-        item.isFlagged ? <FlagRegular style={{ color: outlookTheme.accentColor }} /> : null
-      ),
-    },
-    {
-      key: "read",
-      name: "",
-      fieldName: "isRead",
-      minWidth: 20,
-      maxWidth: 20,
-      onRender: (item: EmailItem) => (
-        <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: item.isRead ? "transparent" : outlookTheme.accentColor }} />
+        <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+          {item.isFlagged && <FlagRegular style={{ color: outlookTheme.accentColor, fontSize: "12px" }} />}
+          <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: item.isRead ? "transparent" : outlookTheme.accentColor }} />
+        </div>
       ),
     },
     {
       key: "content",
       name: "Email",
       fieldName: "content",
-      minWidth: 200,
+      minWidth: 0,
       flexGrow: 1,
       isResizable: false,
       onRender: (item: EmailItem) => (
-        <div style={{ padding: "4px 0", minWidth: 0 }}>
-          {/* Sender name and date on same line */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
+        <div style={{ padding: "2px 2px", minWidth: 0, width: "100%" }}>
+          {/* Sender name */}
+          <div style={{ marginBottom: "1px" }}>
             <Text 
               styles={{ 
                 root: { 
                   fontWeight: item.isRead ? "normal" : "bold",
                   fontSize: "13px",
                   color: outlookTheme.textPrimary,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  flex: 1,
-                  marginRight: "8px"
+                  wordWrap: "break-word",
+                  overflowWrap: "break-word",
+                  whiteSpace: "normal",
+                  wordBreak: "break-word"
                 } 
               }}
             >
               {item.sender}
             </Text>
+          </div>
+          
+          {/* Subject line with wrapping */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "2px", marginBottom: "1px" }}>
+            <Text 
+              styles={{ 
+                root: { 
+                  fontWeight: item.isRead ? "normal" : "bold",
+                  fontSize: "12px",
+                  color: outlookTheme.textSecondary,
+                  wordWrap: "break-word",
+                  overflowWrap: "break-word",
+                  whiteSpace: "normal",
+                  wordBreak: "break-word",
+                  flex: 1,
+                  lineHeight: "1.3"
+                } 
+              }}
+            >
+              {item.subject}
+            </Text>
+            {item.hasAttachments && <span style={{ flexShrink: 0, fontSize: "10px", marginTop: "1px" }}>📎</span>}
+          </div>
+          
+          {/* Date below subject */}
+          <div>
             <Text 
               styles={{ 
                 root: { 
                   fontSize: "11px",
-                  color: outlookTheme.textSecondary,
-                  flexShrink: 0
+                  color: outlookTheme.textSecondary
                 } 
               }}
             >
@@ -342,37 +375,24 @@ export default function OutlookWithAI() {
               })()}
             </Text>
           </div>
-          
-          {/* Subject line below sender */}
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <Text 
-              styles={{ 
-                root: { 
-                  fontWeight: item.isRead ? "normal" : "bold",
-                  fontSize: "12px",
-                  color: outlookTheme.textSecondary,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  flex: 1
-                } 
-              }}
-            >
-              {item.subject}
-            </Text>
-            {item.hasAttachments && <span style={{ flexShrink: 0, fontSize: "10px" }}>📎</span>}
-          </div>
         </div>
       ),
     },
   ];
 
-  const selection = new Selection({
-    onSelectionChanged: () => {
-      const selectionDetails = selection.getSelection();
-      setSelectedEmail(selectionDetails[0] as EmailItem || null);
-    },
-  });
+  const selection = useMemo(() => {
+    const sel = new Selection({
+      onSelectionChanged: () => {
+        const selectionDetails = sel.getSelection();
+        // Only update if there's actually a selection, don't clear on deselection
+        if (selectionDetails.length > 0) {
+          setSelectedEmail(selectionDetails[0] as EmailItem);
+        }
+      },
+    });
+    return sel;
+  }, []);
+
 
   return (
     <Stack styles={stackStyles} tokens={stackTokens}>
@@ -391,7 +411,7 @@ export default function OutlookWithAI() {
       <Stack horizontal styles={{ root: { flex: 1 } }} tokens={stackTokens}>
         {/* Left Navigation */}
         <Stack styles={navigationStackStyles}>
-          <div style={{ padding: "16px 8px" }}>
+          <div style={{ padding: "12px 8px" }}>
             <Text variant="large" styles={{ root: { fontWeight: "bold", color: outlookTheme.textPrimary } }}>
               Outlook
             </Text>
@@ -408,9 +428,13 @@ export default function OutlookWithAI() {
             styles={{
               root: {
                 backgroundColor: outlookTheme.navigationBackground,
+                paddingLeft: 8,
+                paddingRight: 8,
               },
               link: {
                 color: outlookTheme.textPrimary,
+                paddingLeft: 8,
+                paddingRight: 8,
                 "&:hover": {
                   backgroundColor: outlookTheme.borderColor,
                 },
@@ -422,28 +446,6 @@ export default function OutlookWithAI() {
             }}
           />
 
-          <Separator />
-
-          <div style={{ padding: "8px" }}>
-            <Text variant="small" styles={{ root: { color: outlookTheme.textSecondary, marginBottom: 8 } }}>
-              Client
-            </Text>
-            <select
-              value={selectedClientId}
-              onChange={e => setSelectedClientId(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "4px 8px",
-                border: `1px solid ${outlookTheme.borderColor}`,
-                borderRadius: 2,
-                backgroundColor: outlookTheme.contentBackground,
-              }}
-            >
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
         </Stack>
 
         {/* Main Content */}
@@ -465,7 +467,7 @@ export default function OutlookWithAI() {
 
           <Stack horizontal styles={{ root: { flex: 1, overflow: "hidden" } }} tokens={stackTokens}>
             {/* Email List - Smaller sidebar */}
-            <Stack styles={{ root: { width: 350, borderRight: `1px solid ${outlookTheme.borderColor}` } }}>
+            <Stack styles={{ root: { width: 280, borderRight: `1px solid ${outlookTheme.borderColor}` } }}>
               <div style={{ padding: "8px 16px", borderBottom: `1px solid ${outlookTheme.borderColor}` }}>
                 <Text variant="medium" styles={{ root: { fontWeight: "bold" } }}>
                   {selectedFolder === "inbox" ? "Inbox" : 
@@ -482,10 +484,14 @@ export default function OutlookWithAI() {
                 styles={{
                   root: {
                     backgroundColor: outlookTheme.contentBackground,
+                    overflow: "hidden",
                   },
                   headerWrapper: {
                     backgroundColor: outlookTheme.contentBackground,
                     borderBottom: `1px solid ${outlookTheme.borderColor}`,
+                  },
+                  contentWrapper: {
+                    overflow: "hidden",
                   },
                 }}
               />
@@ -504,12 +510,31 @@ export default function OutlookWithAI() {
                   }}>
                     <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
                       <div style={{ flex: 1 }}>
-                        <Text variant="large" styles={{ root: { fontWeight: "bold" } }}>
-                          {selectedEmail.subject}
-                        </Text>
-                        <Text variant="small" styles={{ root: { color: outlookTheme.textSecondary, marginTop: 4 } }}>
-                          From: {selectedEmail.sender} • {selectedEmail.receivedTime}
-                        </Text>
+                        <div style={{ marginBottom: "8px" }}>
+                          <Text variant="large" styles={{ root: { fontWeight: "bold" } }}>
+                            {selectedEmail.subject}
+                          </Text>
+                        </div>
+                        <div style={{ marginBottom: "4px" }}>
+                          <Text variant="small" styles={{ root: { color: outlookTheme.textSecondary } }}>
+                            From: {selectedEmail.sender}
+                          </Text>
+                        </div>
+                        <div>
+                          <Text variant="small" styles={{ root: { color: outlookTheme.textSecondary } }}>
+                            {(() => {
+                              const date = new Date(selectedEmail.receivedTime);
+                              return date.toLocaleDateString('en-US', { 
+                                weekday: 'short', 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              });
+                            })()}
+                          </Text>
+                        </div>
                       </div>
                       <Stack horizontal tokens={{ childrenGap: 8 }}>
                         <IconButton iconProps={{ iconName: "Reply" }} title="Reply" />
@@ -525,12 +550,15 @@ export default function OutlookWithAI() {
                   </div>
                   
                   {/* Email Content */}
-                  <div style={{ 
-                    padding: "24px", 
-                    flex: 1, 
-                    overflow: "auto",
-                    backgroundColor: outlookTheme.contentBackground
-                  }}>
+                  <div 
+                    style={{ 
+                      padding: "24px", 
+                      flex: 1, 
+                      overflow: "auto",
+                      backgroundColor: outlookTheme.contentBackground
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Text styles={{ root: { lineHeight: "1.6", fontSize: "14px" } }}>
                       {selectedEmail.body}
                     </Text>
@@ -559,7 +587,7 @@ export default function OutlookWithAI() {
 
             {/* AI Insights Panel - Inline */}
             {isAIPanelOpen && (
-              <Stack styles={{ root: { width: 400, borderLeft: `1px solid ${outlookTheme.borderColor}`, backgroundColor: outlookTheme.contentBackground } }}>
+              <Stack styles={{ root: { width: 400, height: "100%", borderLeft: `1px solid ${outlookTheme.borderColor}`, backgroundColor: outlookTheme.contentBackground } }}>
                 {/* AI Panel Header */}
                 <div style={{ 
                   padding: "16px", 
@@ -580,7 +608,7 @@ export default function OutlookWithAI() {
                 </div>
                 
                 {/* AI Panel Content */}
-                <div style={{ flex: 1, overflow: "auto" }}>
+                <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
                   <AssistantPanel
                     email={selectedEmail ? {
                       sender: selectedEmail.sender,
@@ -590,7 +618,7 @@ export default function OutlookWithAI() {
                       receivedAt: selectedEmail.receivedTime,
                     } : null}
                     communications={communicationsArray}
-                    clientEmail={selectedClient?.email}
+                    clientEmail={selectedEmail?.senderEmail}
                     onCollapse={() => setIsAIPanelOpen(false)}
                   />
                 </div>
