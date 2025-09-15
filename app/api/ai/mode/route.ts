@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-static';
+export const revalidate = false;
 import { getAIProcessingManagerServer, getCurrentAIModeServer, switchAIModeServer } from '@/services/ai-server-only';
 import { AIProcessingMode } from '@/types';
 

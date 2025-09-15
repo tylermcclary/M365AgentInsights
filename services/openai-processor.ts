@@ -93,7 +93,7 @@ export class OpenAIProcessor {
     
     try {
       const response = await this.openai.chat.completions.create({
-        model: this.config.openai.model,
+        model: this.config.OPENAI_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -113,7 +113,7 @@ export class OpenAIProcessor {
       return {
         ...result,
         tokensUsed: response.usage?.total_tokens || 0,
-        model: this.config.openai.model
+        model: this.config.OPENAI_MODEL
       };
       
     } catch (error) {
@@ -195,7 +195,7 @@ Next Actions: ${analysisResult.nextBestActions.map(a => a.action).join(', ')}
       `;
 
       const response = await this.openai.chat.completions.create({
-        model: this.config.openai.model,
+        model: this.config.OPENAI_MODEL,
         messages: [
           {
             role: 'system',
@@ -239,7 +239,7 @@ Relationship Health: ${analysisResult.relationshipHealth.score}/10
       };
 
       const response = await this.openai.chat.completions.create({
-        model: this.config.openai.model,
+        model: this.config.OPENAI_MODEL,
         messages: [
           {
             role: 'system',

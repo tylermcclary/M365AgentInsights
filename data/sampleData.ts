@@ -453,7 +453,7 @@ clients.forEach(c => {
   allChats.push(...chats);
 });
 
-export const emails: SampleEmail[] = allEmails.sort((a, b) => a.receivedDateTime.localeCompare(b.receivedDateTime));
+export const emails: SampleEmail[] = allEmails.sort((a, b) => b.receivedDateTime.localeCompare(a.receivedDateTime));
 export const events: SampleEvent[] = allEvents.sort((a, b) => a.start.localeCompare(b.start));
 export const teamsMessages: SampleTeamsMessage[] = allChats.sort((a, b) => a.createdDateTime.localeCompare(b.createdDateTime));
 

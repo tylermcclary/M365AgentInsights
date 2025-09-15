@@ -52,7 +52,7 @@ export default function DemoControlPanel() {
       log("Graph API (simulated): fetched communications");
       // small delay for UX
       await new Promise(r => setTimeout(r, 300));
-      const ai = analyzeClientCommunications(selectedClient.email, comms);
+      const ai = await analyzeClientCommunications(selectedClient.email, comms);
       setInsights(ai);
       log("AI: insights generated for simulated email context");
       setToast({ id: "sim", type: "success", message: "Simulated email processed" });
@@ -67,7 +67,7 @@ export default function DemoControlPanel() {
     const comms = loadComms();
     setTimeline(comms);
     await new Promise(r => setTimeout(r, 200));
-    const ai = analyzeClientCommunications(selectedClient.email, comms);
+    const ai = await analyzeClientCommunications(selectedClient.email, comms);
     setInsights(ai);
     log("AI: comprehensive client analysis ready");
     setToast({ id: "insights", type: "success", message: "Client insights ready" });
@@ -200,7 +200,7 @@ export default function DemoControlPanel() {
       </div>
 
       <div className="mt-3 text-[11px] text-neutral-500">
-        Before/After: Run "Simulate incoming email" first, note insights; then run "Generate next actions" to see how recommendations update based on the same context.
+        Before/After: Run &quot;Simulate incoming email&quot; first, note insights; then run &quot;Generate next actions&quot; to see how recommendations update based on the same context.
       </div>
 
       <NotificationToast toast={toast} onDismiss={() => setToast(null)} />

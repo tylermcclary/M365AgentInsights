@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { clients, getCommunicationsByClient } from "@/data/sampleData";
-import { analyzeClientCommunications, suggestNextBestActions, type Communication } from "@/services/ai-insights";
+import { analyzeClientCommunications, suggestNextBestActions, type Communication, type ClientInsights } from "@/services/ai-insights";
 import Button from "@/components/ui/Button";
 import Tooltip from "@/components/ui/Tooltip";
 import Modal from "@/components/ui/Modal";
@@ -11,7 +11,7 @@ import { Maximize2, Minimize2, ChevronLeft, ChevronRight, BookOpenText, BarChart
 
 type SlideKey = "problem" | "solution" | "capabilities" | "demo" | "value" | "roadmap";
 
-const slides: { key: SlideKey; title: string; icon: JSX.Element; summary: string }[] = [
+const slides: { key: SlideKey; title: string; icon: React.ReactElement; summary: string }[] = [
   { key: "problem", title: "Problem: Information Overload", icon: <FileSearch2 className="h-5 w-5" />, summary: "Advisors face too many emails, meetings, and chats across channels—hard to extract what's important quickly." },
   { key: "solution", title: "Solution: AI-Powered Insights", icon: <Sparkles className="h-5 w-5" />, summary: "Summarize, prioritize, and recommend next actions from your communications automatically." },
   { key: "capabilities", title: "Capabilities", icon: <Cpu className="h-5 w-5" />, summary: "Microsoft Graph integration, context detection, insights generation, and recommended actions." },
@@ -70,8 +70,18 @@ export default function PresentationMode() {
     return [...emails, ...events, ...chats].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }, [client]);
 
-  const beforeInsights = useMemo(() => (client ? analyzeClientCommunications(client.email, comms.slice(0, Math.max(1, Math.floor(comms.length / 2)))) : null), [client, comms]);
-  const afterInsights = useMemo(() => (client ? analyzeClientCommunications(client.email, comms) : null), [client, comms]);
+  const [beforeInsights, setBeforeInsights] = useState<ClientInsights | null>(null);
+  const [afterInsights, setAfterInsights] = useState<ClientInsights | null>(null);
+  
+  useEffect(() => {
+    if (client && comms.length > 0) {
+      analyzeClientCommunications(client.email, comms.slice(0, Math.max(1, Math.floor(comms.length / 2))))
+        .then(setBeforeInsights);
+      analyzeClientCommunications(client.email, comms)
+        .then(setAfterInsights);
+    }
+  }, [client, comms]);
+  
   const metrics = useMemo(() => {
     const msgs = comms.length;
     const timeSavedMin = Math.min(60, Math.round(msgs * 1.2));

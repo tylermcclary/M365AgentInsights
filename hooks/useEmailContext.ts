@@ -17,13 +17,15 @@ export function useEmailContext(selected: SelectedEmail) {
 
   useEffect(() => {
     const unsub = subscribeContext(e => setContext(e));
-    return () => unsub();
+    return () => {
+      unsub();
+    };
   }, []);
 
   useEffect(() => {
     const email = selected?.senderEmail ?? selected?.sender;
     if (email) {
-      triggerAnalysisForEmail(email);
+      triggerAnalysisForEmail(email).catch(console.error);
     }
   }, [selected?.senderEmail, selected?.sender]);
 

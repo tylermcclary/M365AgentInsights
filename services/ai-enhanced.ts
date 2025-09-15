@@ -6,8 +6,8 @@
  */
 
 import OpenAI from 'openai';
-import * as compromise from 'compromise';
-import * as sentiment from 'sentiment';
+import compromise from 'compromise';
+import Sentiment from 'sentiment';
 
 // Only import natural on server side to avoid browser compatibility issues
 let natural: any = null;
@@ -30,7 +30,7 @@ const openai = AI_CONFIG.OPENAI_ENABLED ? new OpenAI({
 }) : null;
 
 // Initialize sentiment analyzer
-const sentimentAnalyzer = new sentiment.SentimentAnalyzer();
+const sentimentAnalyzer = new Sentiment();
 const stemmer = natural ? natural.PorterStemmer : null;
 
 /**
@@ -87,6 +87,16 @@ export async function analyzeText(text: string): Promise<EnhancedTextAnalysis> {
 
     // Sentiment analysis
     const sentimentResult = sentimentAnalyzer.analyze(text);
+    const adaptedSentiment = {
+      score: sentimentResult.score,
+      comparative: sentimentResult.comparative,
+      positive: sentimentResult.positive || [],
+      negative: sentimentResult.negative || [],
+      neutral: sentimentResult.tokens?.filter(token => 
+        !sentimentResult.positive?.includes(token) && 
+        !sentimentResult.negative?.includes(token)
+      ) || []
+    };
     
     // Entity extraction using compromise
     const doc = compromise(text);
@@ -105,14 +115,14 @@ export async function analyzeText(text: string): Promise<EnhancedTextAnalysis> {
     
     // Generate summary using AI if available, otherwise use extractive summarization
     let summary = '';
-    if (openai && aiConfig.features.aiSummaryEnabled) {
+    if (openai) {
       summary = await generateAISummary(text);
     } else {
       summary = generateExtractiveSummary(text);
     }
 
     return {
-      sentiment: sentimentResult,
+      sentiment: adaptedSentiment,
       entities: {
         people,
         organizations,
@@ -146,7 +156,7 @@ export async function generateAIInsights(
 
     // Process emails for insights
     for (const email of emails.slice(0, 10)) { // Limit to prevent API overuse
-      const emailText = `${email.subject || ''} ${email.bodyPreview || ''}`;
+      const emailText = email.subject || '';
       const analysis = await analyzeText(emailText);
       
       // Generate insights based on analysis
@@ -156,7 +166,7 @@ export async function generateAIInsights(
 
     // Process calendar events for insights
     for (const event of events.slice(0, 5)) {
-      const eventText = `${event.subject || ''} ${event.bodyPreview || ''}`;
+      const eventText = event.subject || '';
       const analysis = await analyzeText(eventText);
       
       const eventInsights = await generateEventInsights(event, analysis);
@@ -207,8 +217,7 @@ async function generateEmailInsights(
   // Action items detection
   const actionKeywords = ['action required', 'please review', 'approval needed', 'deadline', 'urgent'];
   const hasActionItems = actionKeywords.some(keyword => 
-    email.subject?.toLowerCase().includes(keyword) || 
-    email.bodyPreview?.toLowerCase().includes(keyword)
+    email.subject?.toLowerCase().includes(keyword)
   );
 
   if (hasActionItems) {
@@ -311,7 +320,7 @@ async function generateAISummary(text: string): Promise<string> {
 
   try {
     const response = await openai.chat.completions.create({
-      model: aiConfig.openai.model,
+      model: AI_CONFIG.OPENAI_MODEL,
       messages: [
         {
           role: 'system',
@@ -322,8 +331,8 @@ async function generateAISummary(text: string): Promise<string> {
           content: `Please provide a brief summary of the following text:\n\n${text}`,
         },
       ],
-      max_tokens: Math.min(aiConfig.openai.maxTokens, 500),
-      temperature: aiConfig.openai.temperature,
+      max_tokens: Math.min(AI_CONFIG.OPENAI_MAX_TOKENS, 500),
+      temperature: AI_CONFIG.OPENAI_TEMPERATURE,
     });
 
     return response.choices[0]?.message?.content || generateExtractiveSummary(text);
@@ -506,6 +515,4 @@ function getFallbackInsights(): AIInsight[] {
 export default {
   analyzeText,
   generateAIInsights,
-  getAIConfig,
-  validateAIConfig,
 };

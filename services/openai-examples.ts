@@ -373,7 +373,7 @@ export async function exampleErrorHandling() {
     console.log('Unexpected success with invalid API key');
     return analysis;
   } catch (error) {
-    console.log('Expected error caught:', error.message);
+    console.log('Expected error caught:', error instanceof Error ? error.message : String(error));
     
     // Demonstrate fallback handling
     console.log('\nFallback handling:');

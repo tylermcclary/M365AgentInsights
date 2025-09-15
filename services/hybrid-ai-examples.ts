@@ -355,7 +355,7 @@ export async function exampleBatchProcessing() {
         
         results.push({ mode, insights: batchResults[0] });
       } catch (error) {
-        console.log(`${mode} mode failed:`, error.message);
+        console.log(`${mode} mode failed:`, error instanceof Error ? error.message : String(error));
       }
     }
     

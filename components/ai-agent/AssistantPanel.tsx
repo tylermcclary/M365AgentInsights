@@ -89,6 +89,7 @@ export default function AssistantPanel({
   const analyze = useCallback(async () => {
     setLoading(true);
     try {
+      // Always analyze all communications for the client, but preserve email context
       const comms: Communication[] = (communications && communications.length > 0)
         ? communications
         : email
@@ -101,6 +102,7 @@ export default function AssistantPanel({
               timestamp: email.receivedAt ?? new Date().toISOString(),
             }]
           : [];
+      
       const insightsResp = await analyzeClientCommunications(
         clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), 
         comms,
@@ -133,14 +135,14 @@ export default function AssistantPanel({
     }
   }, [clientEmail, communications, analyze]);
 
-  // Auto-analyze when communications are available
+  // Auto-analyze when email or communications are available
   useEffect(() => {
-    console.log("AssistantPanel useEffect - communications:", communications?.length, "insights:", !!insights);
-    if (communications && communications.length > 0) {
-      console.log("Auto-triggering analysis with communications:", communications.length);
+    console.log("AssistantPanel useEffect - email:", !!email, "communications:", communications?.length, "insights:", !!insights);
+    if (email || (communications && communications.length > 0)) {
+      console.log("Auto-triggering analysis with email:", !!email, "communications:", communications?.length);
       analyze();
     }
-  }, [communications, analyze]);
+  }, [email, communications, analyze]);
 
   // Listen for context analyzer events to auto-update insights
   useEffect(() => {
@@ -187,7 +189,7 @@ export default function AssistantPanel({
   }
 
   return (
-    <div className="h-full border-l bg-white dark:bg-neutral-950 flex flex-col w-full max-w-md">
+    <div className="flex flex-col w-full max-w-md h-full bg-white dark:bg-neutral-950">
       <div className="flex items-center justify-between px-3 py-2 border-b bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-neutral-900 dark:to-neutral-900">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-indigo-600" />
@@ -208,13 +210,18 @@ export default function AssistantPanel({
       </div>
 
       {open ? (
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        <div className="overflow-y-auto p-3 pb-6 space-y-3 flex-1" style={{ minHeight: 0 }}>
           {/* Analyze button */}
           <div className="flex items-center justify-between">
-            <div className="text-xs text-neutral-600">Analyze current email context</div>
-            <Tooltip content="Runs AI summarization and recommendations based on recent communications">
+            <div className="text-xs text-neutral-600">
+              {communications && communications.length > 0 ? 
+                `Analyze ${communications.length} communications${email ? ` (viewing: "${email.subject?.slice(0, 25)}${email.subject && email.subject.length > 25 ? '...' : ''}")` : ''}` :
+                email ? `Analyze: "${email.subject?.slice(0, 30)}${email.subject && email.subject.length > 30 ? '...' : ''}"` :
+                "No content to analyze"}
+            </div>
+            <Tooltip content={communications && communications.length > 0 ? "Analyze all communications for this client" : "Analyze the currently selected email"}>
               <span>
-                <Button onClick={analyze} disabled={loading} size="sm" leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}>{loading ? "Analyzing..." : "Run analysis"}</Button>
+                <Button onClick={analyze} disabled={loading || (!email && (!communications || communications.length === 0))} size="sm" leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}>{loading ? "Analyzing..." : "Run analysis"}</Button>
               </span>
             </Tooltip>
           </div>
@@ -343,6 +350,7 @@ export default function AssistantPanel({
               )}
             </dl>
           </Section>
+
         </div>
       ) : null}
     </div>

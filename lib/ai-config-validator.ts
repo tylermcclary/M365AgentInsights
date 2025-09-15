@@ -104,7 +104,7 @@ export const performAIHealthCheck = async () => {
     console.groupEnd();
     return {
       healthy: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 };

@@ -60,12 +60,12 @@ export function loadCommunicationsForClient(clientEmail: string): Communication[
   return [...emails, ...events, ...chats];
 }
 
-export function triggerAnalysisForEmail(senderEmail?: string) {
+export async function triggerAnalysisForEmail(senderEmail?: string) {
   if (!senderEmail) return;
   const client = identifyClientFromEmail(senderEmail);
   if (!client) return;
   const comms = loadCommunicationsForClient(client.email);
-  const insights = analyzeClientCommunications(client.email, comms);
+  const insights = await analyzeClientCommunications(client.email, comms);
   publishContext({ clientEmail: client.email, clientId: client.id, insights, communications: comms });
 }
 

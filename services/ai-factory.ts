@@ -1,6 +1,6 @@
 import { AIProcessingManager } from './ai-processing-manager';
 import { AIProcessingConfig, AIProcessingMode } from '@/types';
-import { getAIConfig } from '@/lib/ai-config';
+import { AI_CONFIG } from '@/lib/ai-config';
 
 /**
  * Factory function to create AI processing managers with different configurations
@@ -10,11 +10,11 @@ import { getAIConfig } from '@/lib/ai-config';
  * Create an AI processing manager with OpenAI capabilities
  */
 export function createOpenAIProcessor(config?: Partial<AIProcessingConfig>): AIProcessingManager {
-  const aiConfig = getAIConfig();
+  const aiConfig = AI_CONFIG;
   
   const defaultConfig: AIProcessingConfig = {
     mode: 'openai',
-    openaiModel: aiConfig.openai.model as 'gpt-3.5-turbo' | 'gpt-4' | 'gpt-4o-mini',
+    openaiModel: aiConfig.OPENAI_MODEL as 'gpt-3.5-turbo' | 'gpt-4' | 'gpt-4o-mini',
     timeout: 30000,
     fallbackToMock: true,
     ...config
@@ -56,22 +56,22 @@ export function createMockProcessor(config?: Partial<AIProcessingConfig>): AIPro
  * Automatically chooses the best available mode
  */
 export function createAutoProcessor(config?: Partial<AIProcessingConfig>): AIProcessingManager {
-  const aiConfig = getAIConfig();
+  const aiConfig = AI_CONFIG;
   
   let mode: AIProcessingMode = 'mock';
   
   // Check if OpenAI is available
-  if (aiConfig.openai.apiKey && aiConfig.features.aiInsightsEnabled) {
+  if (aiConfig.OPENAI_ENABLED) {
     mode = 'openai';
   }
   // Check if local NLP is available
-  else if (aiConfig.nlp.sentimentAnalysisEnabled || aiConfig.nlp.topicExtractionEnabled) {
+  else if (aiConfig.SENTIMENT_ANALYSIS_ENABLED || aiConfig.TOPIC_EXTRACTION_ENABLED) {
     mode = 'nlp';
   }
   
   const defaultConfig: AIProcessingConfig = {
     mode,
-    openaiModel: aiConfig.openai.model as 'gpt-3.5-turbo' | 'gpt-4' | 'gpt-4o-mini',
+    openaiModel: aiConfig.OPENAI_MODEL as 'gpt-3.5-turbo' | 'gpt-4' | 'gpt-4o-mini',
     timeout: mode === 'openai' ? 30000 : mode === 'nlp' ? 10000 : 1000,
     fallbackToMock: mode !== 'mock',
     ...config
@@ -84,13 +84,13 @@ export function createAutoProcessor(config?: Partial<AIProcessingConfig>): AIPro
  * Get the recommended AI processing mode based on available resources
  */
 export function getRecommendedMode(): AIProcessingMode {
-  const aiConfig = getAIConfig();
+  const aiConfig = AI_CONFIG;
   
-  if (aiConfig.openai.apiKey && aiConfig.features.aiInsightsEnabled) {
+  if (aiConfig.OPENAI_ENABLED) {
     return 'openai';
   }
   
-  if (aiConfig.nlp.sentimentAnalysisEnabled || aiConfig.nlp.topicExtractionEnabled) {
+  if (aiConfig.SENTIMENT_ANALYSIS_ENABLED || aiConfig.TOPIC_EXTRACTION_ENABLED) {
     return 'nlp';
   }
   
@@ -101,13 +101,13 @@ export function getRecommendedMode(): AIProcessingMode {
  * Check if a specific AI processing mode is available
  */
 export function isModeAvailable(mode: AIProcessingMode): boolean {
-  const aiConfig = getAIConfig();
+  const aiConfig = AI_CONFIG;
   
   switch (mode) {
     case 'openai':
-      return !!(aiConfig.openai.apiKey && aiConfig.features.aiInsightsEnabled);
+      return !!aiConfig.OPENAI_ENABLED;
     case 'nlp':
-      return !!(aiConfig.nlp.sentimentAnalysisEnabled || aiConfig.nlp.topicExtractionEnabled);
+      return !!(aiConfig.SENTIMENT_ANALYSIS_ENABLED || aiConfig.TOPIC_EXTRACTION_ENABLED);
     case 'mock':
       return true; // Mock is always available
     default:

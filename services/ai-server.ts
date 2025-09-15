@@ -19,8 +19,7 @@ export {
 // Re-export types
 export type { 
   ClientInsights, 
-  Communication,
-  EnhancedClientInsights 
+  Communication
 } from './ai-insights';
 
 export type { AIProcessingMode } from '@/types';

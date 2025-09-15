@@ -258,18 +258,18 @@ export class AIProcessingManager {
       case 'openai':
         modeSpecificText = `[OpenAI Analysis] Advanced AI processing detected ${hasUrgentKeywords ? 'high-priority concerns' : 'standard engagement patterns'}. `;
         modeSpecificTopics = hasUrgentKeywords ? ['urgent', 'priority', 'response', 'ai-analysis'] : ['portfolio', 'meeting', 'performance', 'ai-insights'];
-        modeSpecificSentiment = hasUrgentKeywords ? 'concerned' : 'positive';
+        modeSpecificSentiment = hasUrgentKeywords ? 'negative' : 'positive';
         break;
       case 'nlp':
         modeSpecificText = `[NLP Analysis] Natural language processing identified ${hasUrgentKeywords ? 'urgent communication patterns' : 'normal communication flow'}. `;
         modeSpecificTopics = hasUrgentKeywords ? ['urgent', 'priority', 'nlp-analysis'] : ['portfolio', 'meeting', 'nlp-insights'];
-        modeSpecificSentiment = hasUrgentKeywords ? 'concerned' : 'neutral';
+        modeSpecificSentiment = hasUrgentKeywords ? 'negative' : 'neutral';
         break;
       case 'mock':
       default:
         modeSpecificText = `[Mock Analysis] Rule-based processing shows ${hasUrgentKeywords ? 'urgent matters requiring attention' : 'standard communication patterns'}. `;
         modeSpecificTopics = hasUrgentKeywords ? ['urgent', 'priority', 'mock-analysis'] : ['portfolio', 'meeting', 'mock-insights'];
-        modeSpecificSentiment = hasUrgentKeywords ? 'concerned' : 'positive';
+        modeSpecificSentiment = hasUrgentKeywords ? 'negative' : 'positive';
         break;
     }
     

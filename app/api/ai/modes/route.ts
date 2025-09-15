@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getAvailableModes } from '@/lib/ai-config';
 
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 export async function GET() {
   try {
     const modes = getAvailableModes();

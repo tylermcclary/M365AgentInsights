@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { analyzeClientCommunicationsServer } from '@/services/ai-server-only';
 import { AIProcessingMode } from '@/types';
 
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
