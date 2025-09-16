@@ -17,6 +17,7 @@ import {
   Forward,
   PanelRightOpen,
   PanelRightClose,
+  Calendar,
 } from "lucide-react";
 import AssistantPanel from "@/components/ai-agent/AssistantPanel";
 import { clients, getCommunicationsByClient } from "@/data/sampleData";
@@ -186,33 +187,7 @@ export default function EmailInterface() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] min-h-[560px] w-full border rounded-lg overflow-hidden bg-white dark:bg-neutral-950">
-      {/* Sidebar */}
-      <aside className="hidden md:flex md:w-56 shrink-0 flex-col border-r bg-neutral-50 dark:bg-neutral-900">
-        <div className="flex items-center justify-between p-3 border-b">
-          <div className="text-sm font-semibold">Mail</div>
-          <Button size="sm" onClick={openCompose} leftIcon={<Plus className="h-4 w-4" />}>New</Button>
-        </div>
-        <nav className="flex-1 overflow-y-auto p-2">
-          {folders.map(f => (
-            <button
-              key={f.key}
-              onClick={() => {
-                setActiveFolder(f.key);
-                const first = emails.find(e => e.folder === f.key);
-                setSelectedId(first?.id ?? null);
-              }}
-              className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                activeFolder === f.key ? "bg-blue-50 text-blue-700 dark:bg-neutral-800" : ""
-              }`}
-            >
-              {f.icon}
-              <span>{f.label}</span>
-            </button>
-          ))}
-        </nav>
-      </aside>
-
+    <div className="flex h-full w-full">
       {/* Email list + reading pane */}
       <section className="flex-1 grid grid-rows-[auto,1fr] md:grid-cols-[280px_1fr]">
         {/* Top bar (mobile) */}
@@ -236,7 +211,26 @@ export default function EmailInterface() {
 
         {/* List */}
         <div className="hidden md:flex md:flex-col border-r">
-          <div className="p-2 border-b">
+          {/* Folder Selector */}
+          <div className="p-2 border-b bg-neutral-50 dark:bg-neutral-900">
+            <div className="flex items-center gap-1 mb-2">
+              {folders.map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => {
+                    setActiveFolder(f.key);
+                    const first = emails.find(e => e.folder === f.key);
+                    setSelectedId(first?.id ?? null);
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
+                    activeFolder === f.key ? "bg-blue-100 text-blue-700 dark:bg-neutral-800" : ""
+                  }`}
+                >
+                  {f.icon}
+                  <span>{f.label}</span>
+                </button>
+              ))}
+            </div>
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-neutral-400" />
               <input
@@ -374,7 +368,7 @@ export default function EmailInterface() {
                 })),
                 ...comms.events.map(e => ({
                   id: e.id,
-                  type: "calendar" as const,
+                  type: "event" as const,
                   from: selectedClient.email,
                   subject: e.subject,
                   body: e.notes ?? "",
@@ -382,11 +376,19 @@ export default function EmailInterface() {
                 })),
                 ...comms.chats.map(c => ({
                   id: c.id,
-                  type: "teams" as const,
+                  type: "chat" as const,
                   from: selectedClient.email,
                   subject: c.content.slice(0, 60),
                   body: c.content,
                   timestamp: c.createdDateTime,
+                })),
+                ...comms.meetings.map(m => ({
+                  id: m.id,
+                  type: "meeting" as const,
+                  from: selectedClient.email,
+                  subject: m.subject,
+                  body: `${m.description}\n\nAgenda:\n${m.agenda || 'No agenda'}\n\nNotes:\n${m.notes || 'No notes'}`,
+                  timestamp: m.startTime,
                 }))
               ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
             })() : []}

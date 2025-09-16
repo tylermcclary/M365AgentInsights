@@ -67,7 +67,8 @@ export default function PresentationMode() {
     const emails = c.emails.map(e => ({ id: e.id, type: "email" as const, from: client.email, subject: e.subject, body: e.body, timestamp: e.receivedDateTime }));
     const events = c.events.map(e => ({ id: e.id, type: "event" as const, from: client.email, subject: e.subject, body: e.notes ?? "", timestamp: e.start }));
     const chats = c.chats.map(m => ({ id: m.id, type: "chat" as const, from: client.email, subject: m.content.slice(0, 60), body: m.content, timestamp: m.createdDateTime }));
-    return [...emails, ...events, ...chats].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const meetings = c.meetings.map(m => ({ id: m.id, type: "meeting" as const, from: client.email, subject: m.subject, body: `${m.description}\n\nAgenda:\n${m.agenda || 'No agenda'}\n\nNotes:\n${m.notes || 'No notes'}`, timestamp: m.startTime }));
+    return [...emails, ...events, ...chats, ...meetings].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }, [client]);
 
   const [beforeInsights, setBeforeInsights] = useState<ClientInsights | null>(null);

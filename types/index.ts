@@ -66,7 +66,7 @@ export interface EnhancedClientInsights {
   };
   lastInteraction: {
     when: string;
-    type: "email" | "event" | "chat";
+    type: "email" | "event" | "chat" | "meeting";
     subject?: string;
     snippet?: string;
   } | null;
@@ -127,7 +127,7 @@ export interface AIInsight {
 // Communication types for AI processing
 export interface Communication {
   id: string;
-  type: "email" | "event" | "chat";
+  type: "email" | "event" | "chat" | "meeting";
   from?: string;
   subject?: string;
   body?: string;

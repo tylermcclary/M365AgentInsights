@@ -70,35 +70,54 @@ export class LocalNLPProcessor {
   }
 
   async analyzeClientCommunications(communications: any[]): Promise<LocalNLPAnalysisResult> {
+    console.log('🔍 LocalNLPProcessor: Starting analysis with', communications?.length, 'communications');
+    
     if (!communications || communications.length === 0) {
+      console.log('🔍 LocalNLPProcessor: No communications provided, returning empty result');
       return this.getEmptyResult();
     }
 
     try {
-      const allText = communications.map(c => `${c.subject || ''} ${c.body || c.bodyPreview || ''}`).join(' ');
+      const allText = communications.map(c => {
+        // Include meeting data in text processing
+        if (c.meetingType || c.startTime) {
+          return `${c.subject || ''} ${c.description || ''} ${c.agenda || ''} ${c.notes || ''}`;
+        } else {
+          return `${c.subject || ''} ${c.body || c.bodyPreview || ''}`;
+        }
+      }).join(' ');
+      console.log('🔍 LocalNLPProcessor: Processing text length:', allText.length);
       
       // Process with compromise.js for entity extraction
+      console.log('🔍 LocalNLPProcessor: Processing with compromise.js...');
       const doc = nlp(allText);
       
       // Extract entities
+      console.log('🔍 LocalNLPProcessor: Extracting entities...');
       const people = doc.people().out('array');
       const organizations = doc.organizations().out('array');
       const dates = doc.match('#Date').out('array'); // Use match instead of dates()
       const money = doc.match('#Money').out('array'); // Use match instead of money()
       
+      console.log('🔍 LocalNLPProcessor: Extracted entities:', { people: people.length, organizations: organizations.length, dates: dates.length, money: money.length });
+      
       // Sentiment analysis
+      console.log('🔍 LocalNLPProcessor: Analyzing sentiment...');
       const sentimentResult = this.sentiment ? this.sentiment.analyze(allText) : { comparative: 0, score: 0 };
       const sentimentScore = this.normalizeSentiment(sentimentResult.comparative);
       
       // Financial-specific analysis
+      console.log('🔍 LocalNLPProcessor: Analyzing investment profile...');
       const investmentProfile = this.analyzeInvestmentProfile(allText);
       const lifeEvents = this.extractLifeEvents(allText);
       const concerns = this.identifyConcerns(communications);
       const topics = this.extractKeyTopics(allText);
       
       // Communication pattern analysis
+      console.log('🔍 LocalNLPProcessor: Analyzing communication frequency...');
       const frequency = this.analyzeFrequency(communications);
       
+      console.log('🔍 LocalNLPProcessor: Analysis completed successfully');
       return {
         clientSummary: this.generateSummary(communications, investmentProfile, sentimentScore),
         communicationFrequency: frequency,
@@ -120,7 +139,9 @@ export class LocalNLPProcessor {
       };
 
     } catch (error) {
-      console.error('Local NLP analysis failed:', error);
+      console.error('🔍 LocalNLPProcessor: Analysis failed with error:', error);
+      console.error('🔍 LocalNLPProcessor: Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('🔍 LocalNLPProcessor: Communications data:', communications);
       return this.getEmptyResult();
     }
   }
@@ -202,7 +223,45 @@ export class LocalNLPProcessor {
     const topGoal = investmentProfile.goals[0] || 'financial planning';
     const sentimentText = sentimentScore > 0 ? 'positive' : sentimentScore < 0 ? 'negative' : 'neutral';
     
-    return `${clientName} is actively engaged in ${topGoal} discussions with ${sentimentText} sentiment. Recent communications show ${communications.length} interactions with focus on ${investmentProfile.riskTolerance || 'general'} investment approach.`;
+    // Analyze communication patterns for more specific insights
+    const recentTopics = this.extractKeyTopics(
+      communications.slice(0, 3).map(c => `${c.subject || ''} ${c.body || ''}`).join(' ')
+    );
+    
+    const hasUrgentMatters = communications.some(c => 
+      /urgent|asap|immediately|emergency|concern|worried/i.test(`${c.subject || ''} ${c.body || ''}`)
+    );
+    
+    const hasQuestions = communications.some(c => 
+      (c.body || '').includes('?') || (c.subject || '').includes('?')
+    );
+    
+    // Build more contextual summary
+    let summary = `${clientName} `;
+    
+    if (hasUrgentMatters) {
+      summary += `has urgent matters requiring immediate attention. `;
+    } else if (hasQuestions) {
+      summary += `has pending questions and is actively seeking guidance. `;
+    } else if (communications.length > 5) {
+      summary += `maintains regular communication with ${sentimentText} engagement. `;
+    } else {
+      summary += `has limited recent communication activity. `;
+    }
+    
+    if (investmentProfile.goals.length > 0) {
+      summary += `Primary focus areas include ${investmentProfile.goals.slice(0, 2).join(' and ')}. `;
+    }
+    
+    if (recentTopics.length > 0) {
+      summary += `Recent discussions cover ${recentTopics.slice(0, 3).join(', ')}. `;
+    }
+    
+    if (investmentProfile.riskTolerance !== 'unknown') {
+      summary += `Client shows ${investmentProfile.riskTolerance} risk tolerance. `;
+    }
+    
+    return summary.trim();
   }
 
   private generateNextActions(investmentProfile: any, concerns: string[], frequency: string): Array<{

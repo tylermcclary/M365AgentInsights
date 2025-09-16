@@ -37,3 +37,59 @@ body {
   width: 100%;
   min-height: 100vh;
 }
+
+/* Responsive layout for Outlook components */
+@media (max-width: 1200px) {
+  .outlook-email-list {
+    width: 280px !important;
+    min-width: 280px !important;
+  }
+  
+  .outlook-reading-pane {
+    min-width: 300px !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .outlook-email-list {
+    width: 250px !important;
+    min-width: 250px !important;
+  }
+  
+  .outlook-reading-pane {
+    min-width: 280px !important;
+  }
+  
+  .outlook-ai-panel {
+    width: 280px !important;
+    min-width: 280px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .outlook-navigation {
+    width: 180px !important;
+    min-width: 180px !important;
+  }
+  
+  .outlook-email-list {
+    width: 220px !important;
+    min-width: 220px !important;
+  }
+  
+  .outlook-reading-pane {
+    min-width: 250px !important;
+  }
+}
+
+/* Prevent horizontal scrolling */
+.outlook-container {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Ensure proper flex behavior */
+.outlook-flex-container {
+  min-width: 0;
+  flex-shrink: 1;
+}

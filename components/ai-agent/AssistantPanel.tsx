@@ -20,8 +20,8 @@ import {
   analyzeClientCommunications, 
   switchAIMode, 
   getCurrentAIMode
-} from "@/services/ai-client";
-import { type ClientInsights, type Communication, type AIProcessingMode, type EnhancedClientInsights } from "@/services/ai-types";
+} from "@/services/ai-insights";
+import { type ClientInsights, type Communication, type AIProcessingMode, type EnhancedClientInsights } from "@/types";
 import { subscribeContext } from "@/services/contextAnalyzer";
 import Tooltip from "@/components/ui/Tooltip";
 import Button from "@/components/ui/Button";
@@ -87,62 +87,247 @@ export default function AssistantPanel({
   }, []);
 
   const analyze = useCallback(async () => {
+    console.log('=== Starting new analysis ===');
+    console.log('📊 Analysis context:', {
+      emailSubject: email?.subject,
+      emailSender: email?.senderEmail || email?.sender,
+      clientEmail,
+      aiMode,
+      communicationsCount: communications?.length || 0,
+      hasEmail: !!email,
+      hasCommunications: !!(communications && communications.length > 0)
+    });
+    
     setLoading(true);
+    
+    // Clear previous insights to show fresh analysis
+    setInsights(null);
+    setProcessingTime(null);
+    
     try {
+      // Set the AI mode before analysis
+      await switchAIMode(aiMode);
+      
+      // Validate and normalize context data
+      const clientEmailToUse = clientEmail ?? email?.senderEmail ?? email?.sender;
+      
+      if (!clientEmailToUse) {
+        console.error('📊 No client email available for analysis');
+        throw new Error('No client email available for analysis');
+      }
+      
       // Always analyze all communications for the client, but preserve email context
-      const comms: Communication[] = (communications && communications.length > 0)
-        ? communications
-        : email
-          ? [{
-              id: email.id ?? "selected",
-              type: "email",
-              from: email.senderEmail ?? email.sender ?? "Unknown",
-              subject: email.subject,
-              body: email.body,
-              timestamp: email.receivedAt ?? new Date().toISOString(),
-            }]
-          : [];
+      let comms: Communication[] = [];
+      
+      if (communications && communications.length > 0) {
+        console.log('📊 Using provided communications:', communications.length);
+        comms = communications;
+      } else if (email) {
+        console.log('📊 Creating communication from selected email');
+        comms = [{
+          id: email.id ?? "selected",
+          type: "email",
+          from: email.senderEmail ?? email.sender ?? "Unknown",
+          subject: email.subject || "(No subject)",
+          body: email.body || "",
+          timestamp: email.receivedAt ?? new Date().toISOString(),
+        }];
+      } else {
+        console.warn('📊 No communications or email available for analysis');
+        throw new Error('No communications or email available for analysis');
+      }
+      
+      // Validate communications data
+      const validComms = comms.filter(c => 
+        c.id && c.type && c.from && c.timestamp && 
+        (c.subject || c.body || c.type === 'chat')
+      );
+      
+      if (validComms.length === 0) {
+        console.warn('📊 No valid communications after filtering');
+        throw new Error('No valid communications available for analysis');
+      }
+      
+      console.log('📊 Starting analysis with mode:', aiMode, 'communications:', validComms.length);
+      console.log('📊 Client email:', clientEmailToUse);
+      console.log('📊 Valid communications:', validComms.map(c => ({
+        id: c.id,
+        type: c.type,
+        subject: c.subject?.substring(0, 50),
+        hasBody: !!c.body
+      })));
       
       const insightsResp = await analyzeClientCommunications(
-        clientEmail ?? (email?.senderEmail ?? email?.sender ?? "*"), 
-        comms,
-        aiMode
+        clientEmailToUse, 
+        validComms
       );
+      
+      console.log('Analysis completed:', insightsResp);
+      console.log('📊 Insights structure:', {
+        hasSummary: !!insightsResp.summary,
+        hasLastInteraction: !!insightsResp.lastInteraction,
+        recommendedActionsCount: insightsResp.recommendedActions?.length || 0,
+        highlightsCount: insightsResp.highlights?.length || 0,
+        aiMethod: insightsResp.aiMethod,
+        processingTime: insightsResp.processingMetrics.processingTime
+      });
       setInsights(insightsResp);
       setProcessingTime(insightsResp.processingMetrics.processingTime);
     } catch (error) {
       console.error('Analysis failed:', error);
+      // Set a fallback error state
+      setInsights(null);
     } finally {
       setLoading(false);
+      console.log('=== Analysis finished ===');
     }
   }, [communications, email, clientEmail, aiMode]);
 
   // AI mode change handler
   const handleAIModeChange = useCallback(async (newMode: AIProcessingMode) => {
     try {
+      console.log(`🔄 Switching AI mode from ${aiMode} to ${newMode}`);
+      
+      // Set loading state immediately to prevent UI jumping
+      setLoading(true);
+      
+      // Update mode and switch processing
       setAIMode(newMode);
       await switchAIMode(newMode);
       
-      // Optionally re-analyze current client with new mode
-      if (clientEmail && communications && communications.length > 0) {
-        analyze();
+      // Only re-analyze if we have data and user wants it
+      const hasEmail = email && (email.subject || email.body);
+      const hasCommunications = communications && communications.length > 0;
+      
+      if (hasEmail || hasCommunications) {
+        console.log(`🔄 Mode changed to ${newMode}, retriggering analysis...`);
+        // Use a more controlled approach - don't clear insights immediately
+        await analyzeWithMode(newMode);
+      } else {
+        console.log(`🔄 Mode changed to ${newMode}, but no data available for analysis`);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Failed to switch AI mode:', error);
       // Revert to previous mode on error
       const currentMode = await getCurrentAIMode();
       setAIMode(currentMode);
+      setLoading(false);
     }
-  }, [clientEmail, communications, analyze]);
+  }, [aiMode, email, communications]);
 
-  // Auto-analyze when email or communications are available
-  useEffect(() => {
-    console.log("AssistantPanel useEffect - email:", !!email, "communications:", communications?.length, "insights:", !!insights);
-    if (email || (communications && communications.length > 0)) {
-      console.log("Auto-triggering analysis with email:", !!email, "communications:", communications?.length);
-      analyze();
+  // Separate function for mode-specific analysis that doesn't clear UI immediately
+  const analyzeWithMode = useCallback(async (mode: AIProcessingMode) => {
+    try {
+      console.log('=== Starting mode-specific analysis ===');
+      console.log('📊 Analysis context:', {
+        emailSubject: email?.subject,
+        emailSender: email?.senderEmail || email?.sender,
+        clientEmail,
+        aiMode: mode,
+        communicationsCount: communications?.length || 0,
+        hasEmail: !!email,
+        hasCommunications: !!(communications && communications.length > 0)
+      });
+      
+      // Validate and normalize context data
+      const clientEmailToUse = clientEmail ?? email?.senderEmail ?? email?.sender;
+      
+      if (!clientEmailToUse) {
+        console.error('📊 No client email available for analysis');
+        throw new Error('No client email available for analysis');
+      }
+      
+      // Always analyze all communications for the client, but preserve email context
+      let comms: Communication[] = [];
+      
+      if (communications && communications.length > 0) {
+        console.log('📊 Using provided communications:', communications.length);
+        comms = communications;
+      } else if (email) {
+        console.log('📊 Creating communication from selected email');
+        comms = [{
+          id: email.id ?? "selected",
+          type: "email",
+          from: email.senderEmail ?? email.sender ?? "Unknown",
+          subject: email.subject || "(No subject)",
+          body: email.body || "",
+          timestamp: email.receivedAt ?? new Date().toISOString(),
+        }];
+      } else {
+        console.warn('📊 No communications or email available for analysis');
+        throw new Error('No communications or email available for analysis');
+      }
+      
+      // Validate communications data
+      const validComms = comms.filter(c => 
+        c.id && c.type && c.from && c.timestamp && 
+        (c.subject || c.body || c.type === 'chat')
+      );
+      
+      if (validComms.length === 0) {
+        console.warn('📊 No valid communications after filtering');
+        throw new Error('No valid communications available for analysis');
+      }
+      
+      console.log('📊 Starting analysis with mode:', mode, 'communications:', validComms.length);
+      console.log('📊 Client email:', clientEmailToUse);
+      
+      const insightsResp = await analyzeClientCommunications(
+        clientEmailToUse, 
+        validComms
+      );
+      
+      console.log('Analysis completed:', insightsResp);
+      console.log('📊 Insights structure:', {
+        hasSummary: !!insightsResp.summary,
+        hasLastInteraction: !!insightsResp.lastInteraction,
+        recommendedActionsCount: insightsResp.recommendedActions?.length || 0,
+        highlightsCount: insightsResp.highlights?.length || 0,
+        aiMethod: insightsResp.aiMethod,
+        processingTime: insightsResp.processingMetrics.processingTime
+      });
+      
+      // Update insights smoothly without clearing first
+      setInsights(insightsResp);
+      setProcessingTime(insightsResp.processingMetrics.processingTime);
+    } catch (error) {
+      console.error('Mode-specific analysis failed:', error);
+      // Set a fallback error state
+      setInsights(null);
+    } finally {
+      setLoading(false);
+      console.log('=== Mode-specific analysis finished ===');
     }
-  }, [email, communications, analyze]);
+  }, [communications, email, clientEmail]);
+
+  // Auto-analyze when email or communications change
+  useEffect(() => {
+    console.log("📧 AssistantPanel useEffect - email changed:", !!email, "communications:", communications?.length, "clientEmail:", clientEmail);
+    
+    // Clear previous insights when switching to a new email/client
+    if (email || (communications && communications.length > 0)) {
+      console.log("📧 Clearing previous insights and starting fresh analysis...");
+      setInsights(null);
+      setProcessingTime(null);
+      
+      console.log("📧 Auto-triggering analysis for new email context:", {
+        emailSubject: email?.subject,
+        emailSender: email?.senderEmail || email?.sender,
+        clientEmail,
+        communicationsCount: communications?.length || 0
+      });
+      
+      // Small delay to ensure UI updates before starting analysis
+      setTimeout(() => {
+        analyze();
+      }, 50);
+    } else {
+      console.log("📧 No email or communications available, clearing insights");
+      setInsights(null);
+      setProcessingTime(null);
+    }
+  }, [email?.id, email?.sender, email?.senderEmail, clientEmail, communications?.length, analyze]);
 
   // Listen for context analyzer events to auto-update insights
   useEffect(() => {
@@ -175,13 +360,17 @@ export default function AssistantPanel({
   }, [clientEmail, email?.senderEmail, email?.sender]);
 
   const history = useMemo(() => {
+    // Use communications data for history, but format it properly
     const base: Communication[] = communications ?? [];
-    // Since all communications are already filtered for the selected client, just use them all
     return base
       .slice()
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10)
-      .map(i => ({ when: new Date(i.timestamp).toISOString(), type: i.type, subject: i.subject ?? "(no subject)" }));
+      .map(i => ({ 
+        when: new Date(i.timestamp).toLocaleDateString(), 
+        type: i.type, 
+        subject: i.subject ?? "(no subject)" 
+      }));
   }, [communications]);
 
   function toggleSection(key: SectionKey) {
@@ -214,14 +403,26 @@ export default function AssistantPanel({
           {/* Analyze button */}
           <div className="flex items-center justify-between">
             <div className="text-xs text-neutral-600">
-              {communications && communications.length > 0 ? 
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Analyzing context...</span>
+                </div>
+              ) : communications && communications.length > 0 ? 
                 `Analyze ${communications.length} communications${email ? ` (viewing: "${email.subject?.slice(0, 25)}${email.subject && email.subject.length > 25 ? '...' : ''}")` : ''}` :
                 email ? `Analyze: "${email.subject?.slice(0, 30)}${email.subject && email.subject.length > 30 ? '...' : ''}"` :
                 "No content to analyze"}
             </div>
             <Tooltip content={communications && communications.length > 0 ? "Analyze all communications for this client" : "Analyze the currently selected email"}>
               <span>
-                <Button onClick={analyze} disabled={loading || (!email && (!communications || communications.length === 0))} size="sm" leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}>{loading ? "Analyzing..." : "Run analysis"}</Button>
+                <Button 
+                  onClick={analyze} 
+                  disabled={loading || (!email && (!communications || communications.length === 0))} 
+                  size="sm" 
+                  leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                >
+                  {loading ? "Analyzing..." : insights ? "Re-run analysis" : "Run analysis"}
+                </Button>
               </span>
             </Tooltip>
           </div>
@@ -233,15 +434,24 @@ export default function AssistantPanel({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 AI Processing Mode:
               </label>
+              {loading && (
+                <div className="flex items-center gap-1 text-xs text-blue-600">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Switching mode...</span>
+                </div>
+              )}
             </div>
             <select
               value={aiMode}
               onChange={(e) => {
                 const newMode = e.target.value as AIProcessingMode;
-                handleAIModeChange(newMode);
+                // Prevent rapid changes
+                if (newMode !== aiMode && !loading) {
+                  handleAIModeChange(newMode);
+                }
               }}
               disabled={loading}
-              className="block w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
+              className="block w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 transition-colors duration-200"
             >
               <option value="mock">Mock AI (Fast, Rule-based)</option>
               <option value="nlp">Enhanced NLP (Local Processing)</option>
@@ -268,66 +478,25 @@ export default function AssistantPanel({
             onToggle={() => toggleSection("summary")}
             loading={loading}
           >
-            <p className="text-sm">{insights?.summary.text ?? "Insights will appear here after analysis."}</p>
+            <div className="relative">
+              {loading && insights && (
+                <div className="absolute inset-0 bg-white/80 dark:bg-neutral-950/80 backdrop-blur-sm z-10 flex items-center justify-center rounded">
+                  <div className="flex items-center gap-2 text-sm text-blue-600">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Updating analysis...</span>
+                  </div>
+                </div>
+              )}
+              <p className="text-sm">{insights?.summary.text ?? "Insights will appear here after analysis."}</p>
+            </div>
             {insights?.summary.topics?.length ? (
               <div className="text-xs text-neutral-500 mt-2">Topics: {insights.summary.topics.join(", ")}</div>
             ) : null}
-          </Section>
-
-          {/* Communication History */}
-          <Section
-            title="Communication History"
-            icon={<History className="h-4 w-4" />}
-            open={sectionsOpen.history}
-            onToggle={() => toggleSection("history")}
-            loading={loading}
-          >
-            <ul className="space-y-2">
-              {history.map((i, idx) => (
-                <li key={idx} className="text-sm">
-                  <span className="text-neutral-500 mr-2">{i.when}</span>
-                  <span className="font-medium mr-2">{i.type}</span>
-                  <span className="text-neutral-700">{i.subject}</span>
-                </li>
-              ))}
-              {history.length === 0 && <li className="text-sm text-neutral-500">No items found for this contact.</li>}
-            </ul>
-          </Section>
-
-          {/* Last Interaction Summary */}
-          <Section
-            title="Last Interaction Summary"
-            icon={<Clock className="h-4 w-4" />}
-            open={sectionsOpen.lastInteraction}
-            onToggle={() => toggleSection("lastInteraction")}
-            loading={loading}
-          >
-            <p className="text-sm">
-              {insights?.lastInteraction
-                ? `${new Date(insights.lastInteraction.when).toLocaleDateString()} • ${insights.lastInteraction.type} • ${insights.lastInteraction.subject ?? "(no subject)"}`
-                : "Awaiting analysis."}
-            </p>
-          </Section>
-
-          {/* Recommended Next Actions */}
-          <Section
-            title="Recommended Next Actions"
-            icon={<CheckCircle2 className="h-4 w-4" />}
-            open={sectionsOpen.nextActions}
-            onToggle={() => toggleSection("nextActions")}
-            loading={loading}
-          >
-            <ul className="list-disc pl-5 space-y-1">
-              {(insights?.recommendedActions ?? []).map(a => (
-                <li key={a.id} className="text-sm">
-                  <span className="font-medium">{a.title}</span>
-                  <span className="text-neutral-500"> — {a.rationale}</span>
-                </li>
-              ))}
-              {(!insights?.recommendedActions || insights.recommendedActions.length === 0) && (
-                <li className="text-sm text-neutral-500">No suggestions yet.</li>
-              )}
-            </ul>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-gray-400 mt-2">
+                DEBUG: {insights?.summary ? 'Has summary data' : 'No summary data'}
+              </div>
+            )}
           </Section>
 
           {/* Client Highlights */}
@@ -349,6 +518,82 @@ export default function AssistantPanel({
                 <div className="text-sm text-neutral-500">No highlights yet.</div>
               )}
             </dl>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-gray-400 mt-2">
+                DEBUG: {insights?.highlights?.length || 0} highlights
+              </div>
+            )}
+          </Section>
+
+          {/* Recommended Next Actions */}
+          <Section
+            title="Recommended Next Actions"
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            open={sectionsOpen.nextActions}
+            onToggle={() => toggleSection("nextActions")}
+            loading={loading}
+          >
+            <ul className="list-disc pl-5 space-y-1">
+              {(insights?.recommendedActions ?? []).map(a => (
+                <li key={a.id} className="text-sm">
+                  <span className="font-medium">{a.title}</span>
+                  <span className="text-neutral-500"> — {a.rationale}</span>
+                </li>
+              ))}
+              {(!insights?.recommendedActions || insights.recommendedActions.length === 0) && (
+                <li className="text-sm text-neutral-500">No suggestions yet.</li>
+              )}
+            </ul>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-gray-400 mt-2">
+                DEBUG: {insights?.recommendedActions?.length || 0} recommended actions
+              </div>
+            )}
+          </Section>
+
+          {/* Last Interaction Summary */}
+          <Section
+            title="Last Interaction Summary"
+            icon={<Clock className="h-4 w-4" />}
+            open={sectionsOpen.lastInteraction}
+            onToggle={() => toggleSection("lastInteraction")}
+            loading={loading}
+          >
+            <p className="text-sm">
+              {insights?.lastInteraction
+                ? `${new Date(insights.lastInteraction.when).toLocaleDateString()} • ${insights.lastInteraction.type} • ${insights.lastInteraction.subject ?? "(no subject)"}`
+                : "Awaiting analysis."}
+            </p>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-gray-400 mt-2">
+                DEBUG: {insights?.lastInteraction ? 'Has lastInteraction data' : 'No lastInteraction data'}
+              </div>
+            )}
+          </Section>
+
+          {/* Communication History */}
+          <Section
+            title="Communication History"
+            icon={<History className="h-4 w-4" />}
+            open={sectionsOpen.history}
+            onToggle={() => toggleSection("history")}
+            loading={loading}
+          >
+            <ul className="space-y-2">
+              {history.map((i, idx) => (
+                <li key={idx} className="text-sm">
+                  <span className="text-neutral-500 mr-2">{i.when}</span>
+                  <span className="font-medium mr-2">{i.type}</span>
+                  <span className="text-neutral-700">{i.subject}</span>
+                </li>
+              ))}
+              {history.length === 0 && <li className="text-sm text-neutral-500">No items found for this contact.</li>}
+            </ul>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-gray-400 mt-2">
+                DEBUG: {history.length} items from {communications?.length || 0} communications
+              </div>
+            )}
           </Section>
 
         </div>

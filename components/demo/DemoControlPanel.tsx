@@ -36,7 +36,8 @@ export default function DemoControlPanel() {
     const emails: Communication[] = comms.emails.map(e => ({ id: e.id, type: "email", from: selectedClient.email, subject: e.subject, body: e.body, timestamp: e.receivedDateTime }));
     const events: Communication[] = comms.events.map(e => ({ id: e.id, type: "event", from: selectedClient.email, subject: e.subject, body: e.notes ?? "", timestamp: e.start }));
     const chats: Communication[] = comms.chats.map(c => ({ id: c.id, type: "chat", from: selectedClient.email, subject: c.content.slice(0, 60), body: c.content, timestamp: c.createdDateTime }));
-    return [...emails, ...events, ...chats].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const meetings: Communication[] = comms.meetings.map(m => ({ id: m.id, type: "meeting", from: selectedClient.email, subject: m.subject, body: `${m.description}\n\nAgenda:\n${m.agenda || 'No agenda'}\n\nNotes:\n${m.notes || 'No notes'}`, timestamp: m.startTime }));
+    return [...emails, ...events, ...chats, ...meetings].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
   async function simulateIncomingEmail() {

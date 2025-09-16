@@ -69,11 +69,21 @@ export async function generateEnhancedInsights(
 
 export type Communication = {
   id: string;
-  type: "email" | "event" | "chat";
+  type: "email" | "event" | "chat" | "meeting";
   from?: string;
   subject?: string;
   body?: string;
   timestamp: string; // ISO
+  // Meeting-specific fields
+  meetingType?: "scheduled_call" | "portfolio_review" | "planning_session" | "urgent_consultation";
+  meetingStatus?: "scheduled" | "completed" | "cancelled";
+  meetingDuration?: number; // in minutes
+  meetingLocation?: string;
+  meetingUrl?: string;
+  meetingAgenda?: string;
+  meetingNotes?: string;
+  attendees?: Array<{ name: string; address: string }>;
+  endTime?: string; // ISO timestamp for meetings
 };
 
 export type ClientSummary = {
@@ -108,6 +118,31 @@ export type ClientInsights = {
   lastInteraction: LastInteraction | null;
   recommendedActions: NextBestAction[];
   highlights: ClientHighlight[];
+  // Meeting-specific insights
+  meetingInsights?: {
+    frequency: {
+      totalMeetings: number;
+      averagePerMonth: number;
+      lastMeetingDate?: string;
+      nextScheduledMeeting?: string;
+    };
+    patterns: {
+      preferredMeetingTypes: string[];
+      averageDuration: number;
+      virtualVsInPerson: { virtual: number; inPerson: number };
+      completionRate: number; // percentage of completed vs scheduled meetings
+    };
+    engagement: {
+      level: "high" | "medium" | "low";
+      indicators: string[];
+      followUpActions: string[];
+    };
+    topics: {
+      frequentlyDiscussed: string[];
+      meetingSpecificTopics: string[];
+      emailVsMeetingTopics: { emails: string[]; meetings: string[] };
+    };
+  };
 };
 
 const TOPIC_KEYWORDS: Record<string, RegExp> = {
@@ -134,7 +169,17 @@ function normalizeCommunications(communications: any[]): Communication[] {
     from: c.from?.emailAddress?.address ?? c.from?.email ?? c.from ?? undefined,
     subject: c.subject ?? c.summary ?? "",
     body: c.body?.content ?? c.bodyPreview ?? c.preview ?? c.body ?? "",
-    timestamp: c.timestamp ?? c.createdDateTime ?? c.receivedDateTime ?? c.start?.dateTime ?? new Date().toISOString(),
+    timestamp: c.timestamp ?? c.createdDateTime ?? c.receivedDateTime ?? c.start?.dateTime ?? c.startTime ?? new Date().toISOString(),
+    // Meeting-specific fields
+    meetingType: c.meetingType,
+    meetingStatus: c.meetingStatus ?? c.status,
+    meetingDuration: c.meetingDuration,
+    meetingLocation: c.meetingLocation ?? c.location,
+    meetingUrl: c.meetingUrl,
+    meetingAgenda: c.meetingAgenda ?? c.agenda,
+    meetingNotes: c.meetingNotes ?? c.notes,
+    attendees: c.attendees,
+    endTime: c.endTime,
   }));
 }
 
@@ -194,6 +239,9 @@ export function identifyLastInteraction(communications: any[]): LastInteraction 
 export function suggestNextBestActions(clientData: any): NextBestAction[] {
   try {
     const communications = normalizeCommunications(clientData?.communications ?? []);
+    const meetings = communications.filter(c => c.type === "meeting");
+    const emails = communications.filter(c => c.type === "email");
+    
     const hasMeeting = communications.some(c => TOPIC_KEYWORDS.meeting.test(safeText(c.subject, c.body)));
     const hasRebalance = communications.some(c => TOPIC_KEYWORDS.portfolio.test(safeText(c.subject, c.body)));
     const hasMarketAnxiety = communications.some(c => TOPIC_KEYWORDS.market_anxiety.test(safeText(c.subject, c.body)));
@@ -210,7 +258,37 @@ export function suggestNextBestActions(clientData: any): NextBestAction[] {
       });
     }
     
-    if (!hasMeeting) {
+    // Meeting-specific actions
+    const scheduledMeetings = meetings.filter(m => m.meetingStatus === "scheduled");
+    const completedMeetings = meetings.filter(m => m.meetingStatus === "completed");
+    const cancelledMeetings = meetings.filter(m => m.meetingStatus === "cancelled");
+    
+    if (cancelledMeetings.length > 0) {
+      actions.push({
+        id: "nba-meeting-cancelled",
+        title: "Follow up on cancelled meeting",
+        rationale: `${cancelledMeetings.length} meeting(s) cancelled recently. Check in on client availability and reschedule.`,
+        dueDate: format(addDays(new Date(), 1), "yyyy-MM-dd"),
+        priority: "high",
+      });
+    }
+    
+    if (scheduledMeetings.length === 0 && completedMeetings.length > 0) {
+      const lastMeeting = completedMeetings.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+      const daysSinceLastMeeting = Math.floor((new Date().getTime() - new Date(lastMeeting.timestamp).getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysSinceLastMeeting > 30) {
+        actions.push({
+          id: "nba-meeting-overdue",
+          title: "Schedule next client meeting",
+          rationale: `Last meeting was ${daysSinceLastMeeting} days ago. Time for regular check-in.`,
+          dueDate: format(addDays(new Date(), 3), "yyyy-MM-dd"),
+          priority: "medium",
+        });
+      }
+    }
+    
+    if (!hasMeeting && meetings.length === 0) {
       actions.push({
         id: "nba-1",
         title: "Propose next meeting times",
@@ -219,6 +297,7 @@ export function suggestNextBestActions(clientData: any): NextBestAction[] {
         priority: "medium",
       });
     }
+    
     if (hasRebalance) {
       actions.push({
         id: "nba-2",
@@ -228,6 +307,7 @@ export function suggestNextBestActions(clientData: any): NextBestAction[] {
         priority: "high",
       });
     }
+    
     if (actions.length === 0) {
       actions.push({
         id: "nba-3",
@@ -247,6 +327,7 @@ export function suggestNextBestActions(clientData: any): NextBestAction[] {
 export function extractClientHighlights(communications: any[]): ClientHighlight[] {
   try {
     const items = normalizeCommunications(communications);
+    const meetings = items.filter(c => c.type === "meeting");
     const blob = items.map(i => safeText(i.subject, i.body)).join(" \n ");
     const highlights: ClientHighlight[] = [];
 
@@ -263,12 +344,165 @@ export function extractClientHighlights(communications: any[]): ClientHighlight[
       highlights.push({ label: "Preference", value: "Prefers diversified/ESG strategies" });
     }
 
+    // Meeting-specific highlights
+    if (meetings.length > 0) {
+      const completedMeetings = meetings.filter(m => m.meetingStatus === "completed");
+      const scheduledMeetings = meetings.filter(m => m.meetingStatus === "scheduled");
+      
+      if (completedMeetings.length > 0) {
+        const avgDuration = completedMeetings.reduce((sum, m) => sum + (m.meetingDuration || 60), 0) / completedMeetings.length;
+        highlights.push({ 
+          label: "Meeting Engagement", 
+          value: `${completedMeetings.length} completed meetings (avg ${Math.round(avgDuration)} min)` 
+        });
+      }
+      
+      if (scheduledMeetings.length > 0) {
+        highlights.push({ 
+          label: "Upcoming Meetings", 
+          value: `${scheduledMeetings.length} scheduled meeting(s)` 
+        });
+      }
+      
+      const meetingTypes = meetings.map(m => m.meetingType).filter(Boolean);
+      if (meetingTypes.length > 0) {
+        const mostCommonType = meetingTypes.reduce((a, b, i, arr) => 
+          arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
+        );
+        highlights.push({ 
+          label: "Preferred Meeting Type", 
+          value: mostCommonType?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Various" 
+        });
+      }
+    }
+
     if (highlights.length === 0) {
       highlights.push({ label: "Preference", value: "No explicit preferences detected" });
     }
     return highlights;
   } catch {
     return [{ label: "Info", value: "No highlights available" }];
+  }
+}
+
+// New function to generate meeting-specific insights
+export function generateMeetingInsights(communications: any[]): ClientInsights["meetingInsights"] {
+  try {
+    const items = normalizeCommunications(communications);
+    const meetings = items.filter(c => c.type === "meeting");
+    
+    if (meetings.length === 0) {
+      return undefined;
+    }
+    
+    const now = new Date();
+    const completedMeetings = meetings.filter(m => m.meetingStatus === "completed");
+    const scheduledMeetings = meetings.filter(m => m.meetingStatus === "scheduled");
+    const cancelledMeetings = meetings.filter(m => m.meetingStatus === "cancelled");
+    
+    // Calculate frequency metrics
+    const totalMeetings = meetings.length;
+    const firstMeeting = meetings.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
+    const lastMeeting = completedMeetings.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    const nextMeeting = scheduledMeetings.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
+    
+    const monthsSinceFirst = firstMeeting ? 
+      Math.max(1, Math.floor((now.getTime() - new Date(firstMeeting.timestamp).getTime()) / (1000 * 60 * 60 * 24 * 30))) : 1;
+    const averagePerMonth = totalMeetings / monthsSinceFirst;
+    
+    // Analyze patterns
+    const meetingTypes = meetings.map(m => m.meetingType).filter((type): type is NonNullable<typeof type> => Boolean(type));
+    const typeCounts = meetingTypes.reduce((acc, type) => {
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const preferredMeetingTypes = Object.entries(typeCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 2)
+      .map(([type]) => type);
+    
+    const durations = completedMeetings.map(m => m.meetingDuration).filter(Boolean) as number[];
+    const averageDuration = durations.length > 0 ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0;
+    
+    const virtualMeetings = meetings.filter(m => m.meetingUrl).length;
+    const inPersonMeetings = meetings.filter(m => m.meetingLocation && !m.meetingUrl).length;
+    
+    const completionRate = totalMeetings > 0 ? (completedMeetings.length / totalMeetings) * 100 : 0;
+    
+    // Analyze engagement
+    let engagementLevel: "high" | "medium" | "low" = "medium";
+    const engagementIndicators: string[] = [];
+    const followUpActions: string[] = [];
+    
+    if (averagePerMonth >= 2) {
+      engagementLevel = "high";
+      engagementIndicators.push("High meeting frequency");
+    } else if (averagePerMonth < 0.5) {
+      engagementLevel = "low";
+      engagementIndicators.push("Low meeting frequency");
+    }
+    
+    if (completionRate >= 80) {
+      engagementIndicators.push("High meeting completion rate");
+    } else if (completionRate < 60) {
+      engagementIndicators.push("Low meeting completion rate");
+      followUpActions.push("Address meeting cancellation patterns");
+    }
+    
+    if (cancelledMeetings.length > 0) {
+      followUpActions.push("Follow up on cancelled meetings");
+    }
+    
+    if (scheduledMeetings.length === 0 && completedMeetings.length > 0) {
+      const daysSinceLastMeeting = lastMeeting ? 
+        Math.floor((now.getTime() - new Date(lastMeeting.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      if (daysSinceLastMeeting > 30) {
+        followUpActions.push("Schedule next meeting - overdue");
+      }
+    }
+    
+    // Analyze topics
+    const meetingTexts = meetings.map(m => safeText(m.subject, m.body, m.meetingAgenda, m.meetingNotes));
+    const emailTexts = items.filter(c => c.type === "email").map(e => safeText(e.subject, e.body));
+    
+    const meetingTopics = Object.entries(TOPIC_KEYWORDS)
+      .filter(([, re]) => re.test(meetingTexts.join(" ")))
+      .map(([topic]) => topic);
+    
+    const emailTopics = Object.entries(TOPIC_KEYWORDS)
+      .filter(([, re]) => re.test(emailTexts.join(" ")))
+      .map(([topic]) => topic);
+    
+    const frequentlyDiscussed = [...new Set([...meetingTopics, ...emailTopics])];
+    const meetingSpecificTopics = meetingTopics.filter(topic => !emailTopics.includes(topic));
+    
+    return {
+      frequency: {
+        totalMeetings,
+        averagePerMonth: Math.round(averagePerMonth * 10) / 10,
+        lastMeetingDate: lastMeeting?.timestamp,
+        nextScheduledMeeting: nextMeeting?.timestamp,
+      },
+      patterns: {
+        preferredMeetingTypes,
+        averageDuration: Math.round(averageDuration),
+        virtualVsInPerson: { virtual: virtualMeetings, inPerson: inPersonMeetings },
+        completionRate: Math.round(completionRate),
+      },
+      engagement: {
+        level: engagementLevel,
+        indicators: engagementIndicators,
+        followUpActions,
+      },
+      topics: {
+        frequentlyDiscussed,
+        meetingSpecificTopics,
+        emailVsMeetingTopics: { emails: emailTopics, meetings: meetingTopics },
+      },
+    };
+  } catch (error) {
+    console.error("Error generating meeting insights:", error);
+    return undefined;
   }
 }
 
@@ -303,12 +537,23 @@ export const initializeAIProcessing = (mode?: AIProcessingMode) => {
 };
 
 // Switch AI processing mode
-export const switchAIMode = (mode: AIProcessingMode) => {
+export const switchAIMode = async (mode: AIProcessingMode) => {
+  console.log(`🔄 Switching AI mode to: ${mode}`);
   if (aiProcessingManager) {
+    const oldConfig = aiProcessingManager.getCurrentConfig();
+    console.log(`🔄 Current mode before switch: ${oldConfig.mode}`);
     aiProcessingManager.updateConfig({ mode });
+    const newConfig = aiProcessingManager.getCurrentConfig();
+    console.log(`✅ AI mode updated from ${oldConfig.mode} to: ${newConfig.mode}`);
   } else {
-    initializeAIProcessing(mode);
+    console.log(`🔄 Initializing new AI processing manager with mode: ${mode}`);
+    aiProcessingManager = initializeAIProcessing(mode);
   }
+  
+  // Verify the mode was set correctly
+  const currentMode = aiProcessingManager?.getCurrentMode();
+  console.log(`🔍 Verified current mode: ${currentMode}`);
+  return currentMode;
 };
 
 // Main analysis function that now uses hybrid processing
@@ -316,26 +561,68 @@ export const analyzeClientCommunications = async (
   clientEmail: string,
   communications: any[]
 ): Promise<EnhancedClientInsights> => {
-  if (!aiProcessingManager) {
+  console.log('analyzeClientCommunications called with:', { clientEmail, communicationsCount: communications.length });
+  
+  // Get the current mode from the existing manager or initialize with default
+  let currentMode: AIProcessingMode = 'mock';
+  if (aiProcessingManager) {
+    currentMode = aiProcessingManager.getCurrentMode();
+    console.log('Using existing AI processing manager with mode:', currentMode);
+  } else {
+    console.log('No existing manager, initializing with default mode...');
     aiProcessingManager = initializeAIProcessing();
+    currentMode = aiProcessingManager.getCurrentMode();
   }
   
+  console.log('Current AI mode:', currentMode);
+  
   try {
-    return await aiProcessingManager.processClientCommunications(clientEmail, communications);
+    console.log('Processing with AI manager...');
+    const result = await aiProcessingManager.processClientCommunications(clientEmail, communications);
+    console.log('AI processing completed successfully:', result);
+    return result;
   } catch (error) {
     console.error('AI analysis failed:', error);
+    console.error('Error details:', error);
     
-    // Fallback to your existing mock analysis if everything fails
-    const mockInsights = await analyzeMockInsights(communications);
+    // Fallback to mock analysis but preserve the intended mode
+    console.log(`Falling back to mock analysis for mode: ${currentMode}...`);
+    
+    // Ensure we have a processing manager for fallback
+    if (!aiProcessingManager) {
+      aiProcessingManager = initializeAIProcessing(currentMode);
+    }
+    
+    // Force the manager to use mock mode for fallback
+    aiProcessingManager.updateConfig({ mode: 'mock' });
+    
+    // Use the improved mock processing from the AI manager
+    const mockInsights = await aiProcessingManager.processClientCommunications(clientEmail, communications);
+    console.log('Mock analysis completed:', mockInsights);
+    
+    // Add mode-specific indicators to the fallback result
+    let modeSpecificText = mockInsights.summary.text;
+    if (currentMode === 'nlp') {
+      modeSpecificText = `[NLP Fallback] ${modeSpecificText}`;
+    } else if (currentMode === 'openai') {
+      modeSpecificText = `[OpenAI Fallback] ${modeSpecificText}`;
+    } else {
+      modeSpecificText = `[Mock Analysis] ${modeSpecificText}`;
+    }
+    
     return {
       ...mockInsights,
+      summary: {
+        ...mockInsights.summary,
+        text: modeSpecificText
+      },
       processingMetrics: {
-        processingTime: 100,
-        method: 'mock' as AIProcessingMode,
-        confidence: 0.5,
+        processingTime: mockInsights.processingMetrics?.processingTime || 100,
+        method: currentMode,
+        confidence: 0.3, // Lower confidence for fallback
         tokensUsed: 0
       },
-      aiMethod: 'mock' as AIProcessingMode
+      aiMethod: currentMode
     };
   }
 };
@@ -351,7 +638,8 @@ export const analyzeMockInsights = async (communications: any[]): Promise<Client
     const lastInteraction = identifyLastInteraction(items);
     const recommendedActions = suggestNextBestActions({ communications: items });
     const highlights = extractClientHighlights(items);
-    return { summary, lastInteraction, recommendedActions, highlights };
+    const meetingInsights = generateMeetingInsights(items);
+    return { summary, lastInteraction, recommendedActions, highlights, meetingInsights };
   } catch (error) {
     console.log("analyzeMockInsights - error:", error);
     return {
@@ -367,7 +655,7 @@ export const analyzeMockInsights = async (communications: any[]): Promise<Client
 
 // Utility function to get current AI mode
 export const getCurrentAIMode = (): AIProcessingMode => {
-  return aiProcessingManager?.getCurrentConfig().mode || 'mock';
+  return aiProcessingManager?.getCurrentMode() || 'mock';
 };
 
 // Utility function to get processing manager

@@ -45,14 +45,22 @@ export class OpenAIProcessor {
 
     const communicationText = this.prepareCommunicationsText(communications);
     
-    const systemPrompt = `You are an AI assistant for financial advisors. Analyze client communications and provide actionable insights for relationship management and business development.
+    const systemPrompt = `You are an AI assistant for financial advisors. Analyze client communications including emails, meetings, and other interactions to provide actionable insights for relationship management and business development.
     
     Focus on:
     - Investment goals and risk tolerance
     - Life events that impact financial planning  
     - Communication patterns and client sentiment
+    - Meeting frequency, types, and engagement levels
     - Opportunities for deeper engagement
     - Potential concerns or red flags
+    - Meeting outcomes and follow-up needs
+    
+    Pay special attention to:
+    - Meeting patterns (frequency, completion rates, preferred types)
+    - Topics discussed in meetings vs emails
+    - Meeting duration trends and engagement indicators
+    - Follow-up actions based on meeting outcomes
     
     Be concise, professional, and action-oriented.`;
     
@@ -88,6 +96,14 @@ export class OpenAIProcessor {
       "relationshipHealth": {
         "score": 8,
         "indicators": ["positive/negative relationship indicators"]
+      },
+      "meetingInsights": {
+        "frequency": "high|medium|low",
+        "engagement": "high|medium|low",
+        "preferredTypes": ["scheduled_call", "portfolio_review"],
+        "completionRate": 85,
+        "followUpNeeded": ["specific follow-up actions based on meetings"],
+        "topicsDiscussed": ["topics specific to meetings vs emails"]
       }
     }`;
     
@@ -127,20 +143,41 @@ export class OpenAIProcessor {
 
   private prepareCommunicationsText(communications: any[]): string {
     return communications
-      .sort((a, b) => new Date(a.timestamp || a.receivedDateTime || 0).getTime() - new Date(b.timestamp || b.receivedDateTime || 0).getTime())
+      .sort((a, b) => new Date(a.timestamp || a.receivedDateTime || a.startTime || 0).getTime() - new Date(b.timestamp || b.receivedDateTime || b.startTime || 0).getTime())
       .map((comm, index) => {
-        const timestamp = comm.timestamp || comm.receivedDateTime || comm.createdDateTime || 'Unknown date';
+        const timestamp = comm.timestamp || comm.receivedDateTime || comm.createdDateTime || comm.startTime || 'Unknown date';
         const sender = comm.from?.emailAddress?.name || comm.from?.emailAddress?.address || comm.sender || 'Unknown sender';
         const subject = comm.subject || comm.summary || 'No subject';
-        const body = comm.body?.content || comm.bodyPreview || comm.preview || comm.body || 'No content';
+        const body = comm.body?.content || comm.bodyPreview || comm.preview || comm.body || comm.description || comm.agenda || 'No content';
         
-        return `
-        EMAIL ${index + 1} (${new Date(timestamp).toLocaleDateString()}):
-        From: ${sender}
-        Subject: ${subject}
-        Content: ${body}
-        ---
-        `;
+        // Check if this is a meeting
+        if (comm.meetingType || comm.startTime) {
+          const meetingType = comm.meetingType || 'meeting';
+          const status = comm.status || 'unknown';
+          const attendees = comm.attendees ? comm.attendees.map((a: any) => a.name || a.address).join(', ') : 'Unknown attendees';
+          const location = comm.location || comm.meetingUrl || 'Location TBD';
+          const notes = comm.notes || 'No notes';
+          
+          return `
+          MEETING ${index + 1} (${new Date(timestamp).toLocaleDateString()}):
+          Type: ${meetingType}
+          Subject: ${subject}
+          Status: ${status}
+          Attendees: ${attendees}
+          Location: ${location}
+          Description: ${body}
+          Notes: ${notes}
+          ---
+          `;
+        } else {
+          return `
+          EMAIL ${index + 1} (${new Date(timestamp).toLocaleDateString()}):
+          From: ${sender}
+          Subject: ${subject}
+          Content: ${body}
+          ---
+          `;
+        }
       }).join('\n').substring(0, 8000); // Limit to ~8k chars to stay within token limits
   }
 
