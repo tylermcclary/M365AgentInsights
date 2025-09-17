@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import OutlookInterface from "@/components/email/OutlookInterface";
+import EmailInterface from "@/components/outlook/EmailInterface";
 
 export default function OutlookShell() {
-  return <OutlookInterface showAIPanel={false} />;
+  return <EmailInterface showAIPanel={false} />;
 }

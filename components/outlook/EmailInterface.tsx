@@ -1,29 +1,14 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
-import {
-  Inbox,
-  Send,
-  FileText,
-  Trash2,
-  Archive,
-  Star,
-  Search,
-  Plus,
-  Paperclip,
-  X,
-  Reply,
-  ReplyAll,
-  Forward,
-  PanelRightOpen,
-  PanelRightClose,
-  Calendar,
-} from "lucide-react";
+import React, { useState, useMemo, useCallback } from "react";
+import { Stack } from "@fluentui/react";
+import { Inbox, Send, FileText, Trash2, Archive, Star, Search, Plus, Paperclip, X, Reply, ReplyAll, Forward, PanelRightOpen, PanelRightClose, Calendar } from "lucide-react";
 import AssistantPanel from "@/components/ai-agent/AssistantPanel";
-import { clients, getCommunicationsByClient } from "@/data/sampleData";
+import { clients, getCommunicationsByClient, emails } from "@/data/sampleData";
 import ContextTrigger from "@/components/ai-agent/ContextTrigger";
 import Button from "@/components/ui/Button";
 import Tooltip from "@/components/ui/Tooltip";
+import { outlookTheme } from "@/lib/outlook-theme";
 
 type Email = {
   id: string;
@@ -38,437 +23,275 @@ type Email = {
   attachments?: { name: string; sizeKb: number }[];
 };
 
-const sampleEmails: Email[] = [
-  {
-    id: "1",
-    sender: "Client A",
-    senderEmail: "client.a@example.com",
-    subject: "Action Required: Portfolio Rebalancing",
-    preview: "Please review the proposed changes for Q3...",
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    body:
-      "Hi Advisor,\n\nAttached are the proposed rebalancing changes for Q3. Let me know if you agree.\n\nBest,\nClient A",
-    attachments: [{ name: "Q3-Rebalance.pdf", sizeKb: 524 }],
-    folder: "Inbox",
-    starred: true,
-  },
-  {
-    id: "2",
-    sender: "Research Desk",
-    subject: "Market Update: Rates and Equities",
-    preview: "Equities rallied today while rates stabilized...",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    body:
-      "Today's market update indicates better-than-expected earnings across key sectors.\n\nHighlights:\n- Tech led gains\n- Energy underperformed\n\nRegards,\nResearch Desk",
-    folder: "Inbox",
-  },
-  {
-    id: "3",
-    sender: "You",
-    subject: "Client Onboarding Draft",
-    preview: "Drafting welcome email and next steps...",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    body: "[Draft] Welcome to our advisory practice...",
-    folder: "Drafts",
-  },
-  {
-    id: "4",
-    sender: "You",
-    subject: "Quarterly Review Sent",
-    preview: "Sent quarterly review to Client B...",
-    timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    body: "Sent quarterly review and scheduling link.",
-    folder: "Sent",
-  },
-  {
-    id: "5",
-    sender: "Operations",
-    subject: "Archival Notice",
-    preview: "Records moved to archive per policy...",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    body: "Some records have been archived.",
-    folder: "Archive",
-  },
-];
+// Convert SampleEmail to Email format for the component
+const sampleEmails: Email[] = emails.map(email => ({
+  id: email.id,
+  sender: email.from.name,
+  senderEmail: email.from.address,
+  subject: email.subject,
+  preview: email.body.length > 100 ? email.body.substring(0, 100) + "..." : email.body,
+  timestamp: email.receivedDateTime,
+  body: email.body,
+  folder: "Inbox" as const,
+  starred: Math.random() < 0.2, // Randomly star some emails
+  attachments: Math.random() < 0.3 ? [{ name: "attachment.pdf", sizeKb: Math.floor(Math.random() * 500) + 100 }] : undefined,
+}));
 
-const folders: { key: Email["folder"]; label: string; icon: ReactNode }[] = [
-  { key: "Inbox", label: "Inbox", icon: <Inbox className="h-4 w-4" /> },
-  { key: "Sent", label: "Sent", icon: <Send className="h-4 w-4" /> },
-  { key: "Drafts", label: "Drafts", icon: <FileText className="h-4 w-4" /> },
-  { key: "Archive", label: "Archive", icon: <Archive className="h-4 w-4" /> },
-  { key: "Trash", label: "Trash", icon: <Trash2 className="h-4 w-4" /> },
-];
-
-function formatTime(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const sameDay = d.toDateString() === today.toDateString();
-  return sameDay ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString();
+interface EmailInterfaceProps {
+  showAIPanel?: boolean;
+  onAIPanelToggle?: (show: boolean) => void;
 }
 
-export default function EmailInterface() {
-  const [activeFolder, setActiveFolder] = useState<Email["folder"]>("Inbox");
-  const [query, setQuery] = useState("");
-  const [emails, setEmails] = useState<Email[]>(sampleEmails);
-  const [selectedId, setSelectedId] = useState<string | null>(emails.find(e => e.folder === "Inbox")?.id ?? null);
-  const [isComposeOpen, setComposeOpen] = useState(false);
-  const [compose, setCompose] = useState({ to: "", subject: "", body: "" });
-  const [assistantOpen, setAssistantOpen] = useState(true);
+export default function EmailInterface({ showAIPanel = false, onAIPanelToggle }: EmailInterfaceProps) {
+  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+  const [isReadingPaneOpen, setIsReadingPaneOpen] = useState(true);
+  const [isAIPanelOpen, setIsAIPanelOpen] = useState(showAIPanel);
 
-  // Load all emails from all clients
-  function loadAllEmails() {
-    const allClientEmails: Email[] = [];
-    
-    // Get emails from all clients
-    clients.forEach(client => {
-      const comms = getCommunicationsByClient(client.id);
-      const mapped: Email[] = comms.emails.map(e => ({
-        id: e.id,
-        sender: client.name,
-        senderEmail: client.email,
-        subject: e.subject,
-        preview: e.body.slice(0, 120),
-        timestamp: e.receivedDateTime,
-        body: e.body,
-        folder: "Inbox",
-      }));
-      allClientEmails.push(...mapped);
-    });
-    
-    // Keep some existing Sent/Drafts examples from local sample for variety
-    const extras = sampleEmails.filter(x => x.folder !== "Inbox");
-    const all = [...allClientEmails, ...extras].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setEmails(all);
-    setSelectedId(all.find(e => e.folder === "Inbox")?.id ?? all[0]?.id ?? null);
-  }
+  const stackTokens = { childrenGap: 0 };
 
-  // Initialize with all emails
-  useMemo(() => {
-    loadAllEmails();
+  const filteredEmails = useMemo(() => {
+    return sampleEmails.filter(email => email.folder === "Inbox");
   }, []);
 
-  const filtered = useMemo(() => {
-    const byFolder = emails.filter(e => e.folder === activeFolder);
-    if (!query.trim()) return byFolder;
-    const q = query.toLowerCase();
-    return byFolder.filter(
-      e =>
-        e.sender.toLowerCase().includes(q) ||
-        e.subject.toLowerCase().includes(q) ||
-        e.preview.toLowerCase().includes(q) ||
-        e.body.toLowerCase().includes(q)
-    );
-  }, [emails, activeFolder, query]);
+  const handleEmailSelect = useCallback((email: Email) => {
+    setSelectedEmail(email);
+    setIsReadingPaneOpen(true);
+  }, []);
 
-  const selected = filtered.find(e => e.id === selectedId) ?? filtered[0] ?? null;
+  const handleAIPanelToggle = useCallback((show: boolean) => {
+    setIsAIPanelOpen(show);
+    onAIPanelToggle?.(show);
+  }, [onAIPanelToggle]);
 
-  function openCompose() {
-    setCompose({ to: "", subject: "", body: "" });
-    setComposeOpen(true);
-  }
-
-  function sendCompose() {
-    // In a real app, send via Graph. For POC, add to Sent.
-    const now = new Date().toISOString();
-    const sent: Email = {
-      id: `sent-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      sender: "You",
-      subject: compose.subject || "(No subject)",
-      preview: compose.body.slice(0, 120),
-      timestamp: now,
-      body: compose.body,
-      folder: "Sent",
-    };
-    setEmails(prev => [sent, ...prev]);
-    setActiveFolder("Sent");
-    setSelectedId(sent.id);
-    setComposeOpen(false);
-    // Message added to Sent
-  }
+  const getCommunicationsForSelectedEmail = useCallback(() => {
+    // For now, return empty array to avoid type issues
+    // TODO: Fix proper communication data mapping
+    return [];
+  }, []);
 
   return (
-    <div className="flex h-full w-full">
-      {/* Email list + reading pane */}
-      <section className="flex-1 grid grid-rows-[auto,1fr] md:grid-cols-[280px_1fr]">
-        {/* Top bar (mobile) */}
-        <div className="md:hidden flex items-center gap-2 p-2 border-b">
-          <button
-            onClick={openCompose}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" /> New
-          </button>
-          <div className="flex-1 relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-neutral-400" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search"
-              className="w-full pl-8 pr-3 py-2 rounded-md border text-sm bg-white dark:bg-neutral-950"
-            />
+    <div style={{ height: "100%", backgroundColor: "#ffffff", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, minWidth: 0, overflow: "hidden", display: "flex", flexDirection: "row" }}>
+        {/* Email List */}
+        <div style={{
+          width: "320px",
+          minWidth: "280px",
+          maxWidth: "400px",
+          flex: "0 0 auto",
+          height: "100%",
+          borderRight: `1px solid ${outlookTheme.borderColor}`,
+          backgroundColor: outlookTheme.contentBackground,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden"
+        }}>
+          {/* Email List Header */}
+          <div style={{
+            padding: "16px",
+            borderBottom: `1px solid ${outlookTheme.borderColor}`,
+            backgroundColor: outlookTheme.contentBackground,
+            flexShrink: 0
+          }}>
+            <div style={{ fontWeight: "bold", color: outlookTheme.textPrimary }}>
+              Inbox
+            </div>
+          </div>
+
+          {/* Email List Content */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            {filteredEmails.map((email) => (
+              <div
+                key={email.id}
+                onClick={() => handleEmailSelect(email)}
+                style={{
+                  padding: "12px 16px",
+                  borderBottom: `1px solid ${outlookTheme.borderColor}`,
+                  cursor: "pointer",
+                  backgroundColor: selectedEmail?.id === email.id ? outlookTheme.accentColor : "transparent",
+                  color: selectedEmail?.id === email.id ? "white" : outlookTheme.textPrimary
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedEmail?.id !== email.id) {
+                    (e.target as HTMLElement).style.backgroundColor = outlookTheme.borderColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedEmail?.id !== email.id) {
+                    (e.target as HTMLElement).style.backgroundColor = "transparent";
+                  }
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <div style={{ fontWeight: "600", fontSize: "14px" }}>
+                    {email.sender}
+                  </div>
+                  <div style={{ fontSize: "12px", opacity: 0.7 }}>
+                    {new Date(email.timestamp).toLocaleDateString()}
+                  </div>
+                </div>
+                <div style={{ fontWeight: "600", fontSize: "13px", marginBottom: "4px" }}>
+                  {email.subject}
+                </div>
+                <div style={{ fontSize: "12px", opacity: 0.8, lineHeight: "1.4" }}>
+                  {email.preview}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* List */}
-        <div className="hidden md:flex md:flex-col border-r">
-          {/* Folder Selector */}
-          <div className="p-2 border-b bg-neutral-50 dark:bg-neutral-900">
-            <div className="flex items-center gap-1 mb-2">
-              {folders.map(f => (
-                <button
-                  key={f.key}
-                  onClick={() => {
-                    setActiveFolder(f.key);
-                    const first = emails.find(e => e.folder === f.key);
-                    setSelectedId(first?.id ?? null);
-                  }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                    activeFolder === f.key ? "bg-blue-100 text-blue-700 dark:bg-neutral-800" : ""
-                  }`}
-                >
-                  {f.icon}
-                  <span>{f.label}</span>
-                </button>
-              ))}
+        {/* Reading Pane */}
+        {isReadingPaneOpen && (
+          <div style={{
+            flex: 1,
+            minWidth: 0,
+            height: "100%",
+            backgroundColor: outlookTheme.contentBackground,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden"
+          }}>
+            {selectedEmail ? (
+              <>
+                {/* Reading Pane Header */}
+                <div style={{
+                  padding: "16px",
+                  borderBottom: `1px solid ${outlookTheme.borderColor}`,
+                  backgroundColor: outlookTheme.contentBackground,
+                  flexShrink: 0,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start"
+                }}>
+                  <div style={{ marginBottom: "8px", flex: 1 }}>
+                    <div style={{ fontWeight: "bold", fontSize: "16px", color: outlookTheme.textPrimary }}>
+                      {selectedEmail.subject}
+                    </div>
+                    <div style={{ fontSize: "14px", color: outlookTheme.textSecondary, marginTop: "4px" }}>
+                      From: {selectedEmail.sender}
+                    </div>
+                    <div style={{ fontSize: "12px", color: outlookTheme.textSecondary }}>
+                      {new Date(selectedEmail.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleAIPanelToggle(!isAIPanelOpen)}
+                    style={{
+                      background: "none",
+                      border: "1px solid #0078d4",
+                      color: "#0078d4",
+                      padding: "8px 16px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      marginLeft: "16px",
+                      flexShrink: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.target as HTMLElement).style.backgroundColor = "#0078d4";
+                      (e.target as HTMLElement).style.color = "white";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.target as HTMLElement).style.backgroundColor = "transparent";
+                      (e.target as HTMLElement).style.color = "#0078d4";
+                    }}
+                  >
+                    {isAIPanelOpen ? "Hide AI" : "Show AI"}
+                  </button>
+                </div>
+
+                {/* Reading Pane Content */}
+                <div style={{
+                  flex: 1,
+                  minHeight: 0,
+                  padding: "16px",
+                  overflowY: "auto"
+                }}>
+                  <div style={{ fontSize: "14px", lineHeight: "1.6", color: outlookTheme.textPrimary }}>
+                    {selectedEmail.body}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: outlookTheme.textSecondary
+              }}>
+                Select an email to read
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI Insights Panel */}
+        {isAIPanelOpen && (
+          <div style={{
+            width: "320px",
+            minWidth: "280px",
+            maxWidth: "400px",
+            flex: "0 0 auto",
+            height: "100%",
+            borderLeft: `1px solid ${outlookTheme.borderColor}`,
+            backgroundColor: outlookTheme.contentBackground,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden"
+          }}>
+            {/* AI Panel Header */}
+            <div style={{
+              padding: "16px",
+              borderBottom: `1px solid ${outlookTheme.borderColor}`,
+              backgroundColor: outlookTheme.contentBackground,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexShrink: 0
+            }}>
+              <div style={{ fontWeight: "bold", color: outlookTheme.textPrimary }}>
+                AI Assistant
+              </div>
+              <button
+                onClick={() => handleAIPanelToggle(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: outlookTheme.textSecondary,
+                  padding: "4px",
+                  borderRadius: "4px",
+                  fontSize: "16px",
+                  fontWeight: "bold"
+                }}
+                onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = outlookTheme.borderColor}
+                onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                title="Close AI Assistant"
+              >
+                ×
+              </button>
             </div>
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-neutral-400" />
-              <input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Search mail"
-                className="w-full pl-8 pr-3 py-2 rounded-md border text-sm bg-white dark:bg-neutral-950"
+
+            {/* AI Panel Content */}
+            <div style={{ flex: 1, minHeight: 0, padding: "0", overflowY: "auto" }}>
+              <AssistantPanel
+                email={selectedEmail ? {
+                  id: selectedEmail.id,
+                  sender: selectedEmail.sender,
+                  senderEmail: selectedEmail.senderEmail || selectedEmail.sender,
+                  subject: selectedEmail.subject,
+                  body: selectedEmail.body,
+                  receivedAt: selectedEmail.timestamp,
+                } : undefined}
+                communications={getCommunicationsForSelectedEmail()}
+                clientEmail={selectedEmail?.senderEmail || selectedEmail?.sender}
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {filtered.length === 0 && (
-              <div className="p-6 text-sm text-neutral-500">No emails found.</div>
-            )}
-            {filtered.map(e => (
-              <button
-                key={e.id}
-                onClick={() => setSelectedId(e.id)}
-                className={`w-full text-left px-2 py-2 border-b hover:bg-neutral-50 dark:hover:bg-neutral-900 ${
-                  selectedId === e.id ? "bg-blue-50/60 dark:bg-neutral-900" : ""
-                }`}
-              >
-                <div className="flex items-start gap-1 mb-0.5">
-                  {e.starred && <Star className="h-4 w-4 text-amber-500 mt-0.5" />}
-                  <div className="text-sm font-semibold break-words">{e.sender}</div>
-                </div>
-                <div className="text-sm break-words mb-0.5">{e.subject}</div>
-                <div className="text-xs text-neutral-500">{formatTime(e.timestamp)}</div>
-                <div className="text-xs text-neutral-500 break-words mt-0.5">{e.preview}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Reading pane */}
-        <div className="hidden md:flex md:flex-col relative">
-          {!selected ? (
-            <div className="flex-1 grid place-items-center text-sm text-neutral-500">Select a message</div>
-          ) : (
-            <div className="flex-1 flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b">
-                <div>
-                  <div className="text-sm text-neutral-500">{selected.sender}</div>
-                  <h2 className="text-lg font-semibold">{selected.subject}</h2>
-                  <div className="text-xs text-neutral-500 mt-1">
-                    {(() => {
-                      const date = new Date(selected.timestamp);
-                      return date.toLocaleDateString('en-US', { 
-                        weekday: 'short', 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      });
-                    })()}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="secondary" size="sm" leftIcon={<Reply className="h-4 w-4" />}>Reply</Button>
-                  <Button variant="secondary" size="sm" leftIcon={<ReplyAll className="h-4 w-4" />}>Reply all</Button>
-                  <Button variant="secondary" size="sm" leftIcon={<Forward className="h-4 w-4" />}>Forward</Button>
-                  <Tooltip content="Show or hide the AI Assistant">
-                    <span>
-                      <Button variant="secondary" size="sm" onClick={() => setAssistantOpen(o => !o)} leftIcon={assistantOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}>AI Assistant</Button>
-                    </span>
-                  </Tooltip>
-                </div>
-              </div>
-              <div 
-                className="px-4 py-3 text-sm whitespace-pre-wrap"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {selected.body}
-              </div>
-              {selected.attachments && selected.attachments.length > 0 && (
-                <div className="px-4 pb-4">
-                  <div className="text-xs font-semibold mb-2">Attachments</div>
-                  <div className="flex flex-wrap gap-2">
-                    {selected.attachments.map(att => (
-                      <div key={att.name} className="flex items-center gap-2 px-2 py-1 border rounded text-xs">
-                        <Paperclip className="h-4 w-4" /> {att.name}
-                        <span className="text-neutral-500">({att.sizeKb} KB)</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Assistant Panel (right overlay) */}
-        <div
-          className={`hidden md:block absolute right-0 top-0 h-full w-[360px] border-l bg-white dark:bg-neutral-950 shadow-xl transition-transform duration-200 ease-out ${
-            assistantOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-        >
-          <ContextTrigger senderEmail={selected?.senderEmail ?? selected?.sender} communications={selected ? [{
-            id: selected.id,
-            type: "email",
-            from: selected.senderEmail ?? selected.sender,
-            subject: selected.subject,
-            body: selected.body,
-            timestamp: selected.timestamp,
-          }] : []} />
-          <AssistantPanel
-            email={{
-              id: selected?.id,
-              sender: selected?.sender,
-              senderEmail: selected?.senderEmail,
-              subject: selected?.subject,
-              body: selected?.body,
-              receivedAt: selected?.timestamp,
-            }}
-            defaultOpen={true}
-            onCollapse={() => setAssistantOpen(false)}
-            communications={selected ? (() => {
-              // Find the client that matches the selected email's sender
-              const selectedClient = clients.find(client => 
-                client.name === selected.sender || client.email === selected.senderEmail
-              );
-              
-              if (!selectedClient) return [];
-              
-              const comms = getCommunicationsByClient(selectedClient.id);
-              return [
-                ...comms.emails.map(e => ({
-                  id: e.id,
-                  type: "email" as const,
-                  from: selectedClient.email,
-                  subject: e.subject,
-                  body: e.body,
-                  timestamp: e.receivedDateTime,
-                })),
-                ...comms.events.map(e => ({
-                  id: e.id,
-                  type: "event" as const,
-                  from: selectedClient.email,
-                  subject: e.subject,
-                  body: e.notes ?? "",
-                  timestamp: e.start,
-                })),
-                ...comms.chats.map(c => ({
-                  id: c.id,
-                  type: "chat" as const,
-                  from: selectedClient.email,
-                  subject: c.content.slice(0, 60),
-                  body: c.content,
-                  timestamp: c.createdDateTime,
-                })),
-                ...comms.meetings.map(m => ({
-                  id: m.id,
-                  type: "meeting" as const,
-                  from: selectedClient.email,
-                  subject: m.subject,
-                  body: `${m.description}\n\nAgenda:\n${m.agenda || 'No agenda'}\n\nNotes:\n${m.notes || 'No notes'}`,
-                  timestamp: m.startTime,
-                }))
-              ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-            })() : []}
-            clientEmail={selected?.senderEmail ?? selected?.sender}
-          />
-        </div>
-
-        {/* Mobile reading pane */}
-        <div className="md:hidden">
-          {/* On mobile, show list; tap opens a simple inline reading pane */}
-          <div className="divide-y">
-            {filtered.map(e => (
-              <details key={e.id} className="group">
-                <summary className="px-3 py-3 hover:bg-neutral-50 cursor-pointer">
-                  <div className="text-sm font-semibold line-clamp-1">{e.sender}</div>
-                  <div className="text-sm line-clamp-1">{e.subject}</div>
-                  <div className="text-xs text-neutral-500">{formatTime(e.timestamp)}</div>
-                  <div className="text-xs text-neutral-500 line-clamp-1">{e.preview}</div>
-                </summary>
-                <div className="px-3 py-3 text-sm whitespace-pre-wrap">{e.body}</div>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Compose Modal */}
-      {isComposeOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
-          <div className="w-full max-w-2xl rounded-lg border bg-white dark:bg-neutral-950 shadow-xl">
-            <div className="flex items-center justify-between px-4 py-2 border-b">
-              <div className="text-sm font-semibold">New message</div>
-              <button className="p-1 rounded hover:bg-neutral-100" onClick={() => setComposeOpen(false)}>
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <label className="w-16 text-xs text-neutral-500">To</label>
-                <input
-                  value={compose.to}
-                  onChange={e => setCompose({ ...compose, to: e.target.value })}
-                  placeholder="recipient@example.com"
-                  className="flex-1 border rounded px-2 py-1 text-sm"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="w-16 text-xs text-neutral-500">Subject</label>
-                <input
-                  value={compose.subject}
-                  onChange={e => setCompose({ ...compose, subject: e.target.value })}
-                  placeholder="Subject"
-                  className="flex-1 border rounded px-2 py-1 text-sm"
-                />
-              </div>
-              <div>
-                <textarea
-                  value={compose.body}
-                  onChange={e => setCompose({ ...compose, body: e.target.value })}
-                  placeholder="Write your message..."
-                  className="w-full min-h-[200px] border rounded px-2 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-4 py-3 border-t bg-neutral-50">
-              <div className="text-xs text-neutral-500">POC mode – message will be added to Sent</div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setComposeOpen(false)} className="px-3 py-1.5 text-sm rounded border">
-                  Cancel
-                </button>
-                <button onClick={sendCompose} className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">
-                  Send
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
-
-

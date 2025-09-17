@@ -26,7 +26,7 @@ import {
   stackTokens, 
   navLinkGroups 
 } from "@/lib/outlook-theme";
-import OutlookInterface from "../email/OutlookInterface";
+import EmailInterface from "./EmailInterface";
 import CalendarInterface from "../calendar/CalendarInterface";
 import { clients, meetings, type SampleMeeting } from "@/data/sampleData";
 
@@ -195,7 +195,7 @@ export default function OutlookMainInterface() {
       />
 
       <Stack horizontal styles={{ root: { flex: 1, minWidth: 0, overflow: "hidden" } }} tokens={stackTokens}>
-        {/* Left Navigation */}
+        {/* Left Navigation - show for all views */}
         <Stack styles={navigationStackStyles} className="outlook-navigation">
           <div style={{ padding: "12px 8px" }}>
             <Stack>
@@ -244,50 +244,53 @@ export default function OutlookMainInterface() {
 
         {/* Main Content */}
         <Stack styles={contentStackStyles}>
-          {/* Pivot for Mail/Calendar/People */}
-          <Pivot
-            selectedKey={currentView}
-            onLinkClick={(item) => {
-              if (item && item.props.itemKey) {
-                setCurrentView(item.props.itemKey as ViewMode);
-              }
-            }}
-            styles={{
-              root: {
-                borderBottom: `1px solid ${outlookTheme.borderColor}`,
-                backgroundColor: outlookTheme.contentBackground,
-              },
-            }}
-          >
-            <PivotItem headerText="Mail" itemKey="mail" itemIcon="Mail" />
-            <PivotItem headerText="Calendar" itemKey="calendar" itemIcon="Calendar" />
-            <PivotItem headerText="People" itemKey="people" itemIcon="People" />
-          </Pivot>
-
           {/* Content Area */}
           <Stack styles={{ root: { flex: 1, height: "100%", minWidth: 0, overflow: "hidden" } }} tokens={stackTokens}>
-            {currentView === "mail" && (
-              <OutlookInterface 
-                showAIPanel={showAIPanel}
-                onAIPanelToggle={handleAIPanelToggle}
-              />
-            )}
-            
-            {currentView === "calendar" && (
-              <CalendarInterface
-                onNavigateToEmail={() => setCurrentView("mail")}
-                showAIPanel={showAIPanel}
-                onAIPanelToggle={handleAIPanelToggle}
-              />
-            )}
-            
-            {currentView === "people" && (
-              <Stack styles={{ root: { padding: 20, alignItems: "center", justifyContent: "center" } }}>
-                <div style={{ fontSize: "18px", color: outlookTheme.textSecondary }}>
-                  People view coming soon...
-                </div>
-              </Stack>
-            )}
+            {/* Pivot for all views */}
+            <Pivot
+              selectedKey={currentView}
+              onLinkClick={(item) => {
+                if (item && item.props.itemKey) {
+                  setCurrentView(item.props.itemKey as ViewMode);
+                }
+              }}
+              styles={{
+                root: {
+                  borderBottom: `1px solid ${outlookTheme.borderColor}`,
+                  backgroundColor: outlookTheme.contentBackground,
+                },
+              }}
+            >
+              <PivotItem headerText="Mail" itemKey="mail" itemIcon="Mail" />
+              <PivotItem headerText="Calendar" itemKey="calendar" itemIcon="Calendar" />
+              <PivotItem headerText="People" itemKey="people" itemIcon="People" />
+            </Pivot>
+
+            {/* View Content */}
+            <Stack styles={{ root: { flex: 1, height: "100%", minWidth: 0, overflow: "hidden" } }} tokens={stackTokens}>
+              {currentView === "mail" && (
+                <EmailInterface 
+                  showAIPanel={showAIPanel}
+                  onAIPanelToggle={handleAIPanelToggle}
+                />
+              )}
+              
+              {currentView === "calendar" && (
+                <CalendarInterface
+                  onNavigateToEmail={() => setCurrentView("mail")}
+                  showAIPanel={showAIPanel}
+                  onAIPanelToggle={handleAIPanelToggle}
+                />
+              )}
+              
+              {currentView === "people" && (
+                <Stack styles={{ root: { padding: 20, alignItems: "center", justifyContent: "center" } }}>
+                  <div style={{ fontSize: "18px", color: outlookTheme.textSecondary }}>
+                    People view coming soon...
+                  </div>
+                </Stack>
+              )}
+            </Stack>
           </Stack>
         </Stack>
       </Stack>

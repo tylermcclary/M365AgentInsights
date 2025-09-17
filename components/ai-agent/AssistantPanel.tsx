@@ -327,7 +327,7 @@ export default function AssistantPanel({
       setInsights(null);
       setProcessingTime(null);
     }
-  }, [email?.id, email?.sender, email?.senderEmail, clientEmail, communications?.length, analyze]);
+  }, [email?.id, email?.sender, email?.senderEmail, clientEmail, communications?.length, analyze, communications, email]);
 
   // Listen for context analyzer events to auto-update insights
   useEffect(() => {

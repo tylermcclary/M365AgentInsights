@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { EmailInterfaceState, EmailInterfaceActions, EmailItem, FolderKey } from "@/types/email";
 import { EmailService } from "@/services/email-service";
 
@@ -26,13 +26,21 @@ export function useEmailInterface() {
   // Filter emails based on folder and search
   const filteredEmails = useMemo(() => {
     try {
-      return EmailService.filterEmails(emailItems, selectedFolder, searchQuery);
+      const filtered = EmailService.filterEmails(emailItems, selectedFolder, searchQuery);
+      return filtered;
     } catch (err) {
       setError("Failed to filter emails");
       console.error("Error filtering emails:", err);
       return [];
     }
   }, [emailItems, selectedFolder, searchQuery]);
+
+  // Auto-select first email when emails are loaded or folder changes
+  useEffect(() => {
+    if (filteredEmails.length > 0 && !selectedEmail) {
+      setSelectedEmail(filteredEmails[0]);
+    }
+  }, [filteredEmails, selectedEmail]);
 
   // Actions
   const handleFolderChange = useCallback((folder: FolderKey) => {

@@ -113,6 +113,7 @@ export default function CalendarInterface({
   const handleMeetingSelect = async (meeting: SampleMeeting) => {
     setSelectedMeeting(meeting);
     setShowMeetingDetails(true);
+    setIsAIPanelOpen(true); // Open AI panel when meeting is selected
     
     // Trigger AI analysis for the meeting's client
     const clientInfo = getClientInfo(meeting);
@@ -473,26 +474,6 @@ export default function CalendarInterface({
         )}
       </Stack>
 
-      {/* AI Assistant Panel */}
-      <Panel
-        isOpen={isAIPanelOpen}
-        onDismiss={() => handleAIPanelToggle(false)}
-        type={PanelType.custom}
-        customWidth="320px"
-        styles={{
-          root: { zIndex: 1000 },
-          content: { padding: 0 },
-          main: { backgroundColor: "#ffffff" },
-        }}
-      >
-        <AssistantPanel
-          email={null}
-          defaultOpen={true}
-          onCollapse={() => handleAIPanelToggle(false)}
-          communications={selectedMeeting ? getCommunicationsForMeeting() : []}
-          clientEmail={selectedMeeting ? getClientInfo(selectedMeeting)?.email : undefined}
-        />
-      </Panel>
     </Stack>
 
     {/* Create Meeting Modal */}
@@ -510,111 +491,369 @@ export default function CalendarInterface({
       />
     </Modal>
 
-    {/* Meeting Details Modal */}
-    <Modal
-      open={showMeetingDetails}
-      title={selectedMeeting?.subject || "Meeting Details"}
-      onClose={() => {
-        setShowMeetingDetails(false);
-        setSelectedMeeting(null);
-      }}
-    >
-      {selectedMeeting && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Type</label>
-              <p className="text-sm text-gray-900 capitalize">{selectedMeeting.meetingType.replace('_', ' ')}</p>
+      {/* Meeting Details Modal - Large with AI Panel */}
+      {showMeetingDetails && selectedMeeting && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: 2000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px"
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowMeetingDetails(false);
+              setSelectedMeeting(null);
+            }
+          }}
+        >
+          <div 
+            style={{
+              width: "75%",
+              height: "75%",
+              backgroundColor: "white",
+              borderRadius: "8px",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden"
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: "20px 24px",
+              borderBottom: "1px solid #edebe9",
+              backgroundColor: "#faf9f8",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexShrink: 0
+            }}>
+              <div>
+                <h2 style={{ 
+                  margin: 0, 
+                  fontSize: "20px", 
+                  fontWeight: 600, 
+                  color: "#323130" 
+                }}>
+                  {selectedMeeting.subject}
+                </h2>
+                <p style={{ 
+                  margin: "4px 0 0 0", 
+                  fontSize: "14px", 
+                  color: "#605e5c" 
+                }}>
+                  Meeting Details
+                </p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                {/* AI Assistant Button - only show when AI panel is hidden */}
+                {!isAIPanelOpen && (
+                  <PrimaryButton
+                    iconProps={{ iconName: "Lightbulb" }}
+                    onClick={() => setIsAIPanelOpen(true)}
+                    text="AI Insights"
+                    styles={{
+                      root: {
+                        backgroundColor: "#0078d4",
+                        color: "white",
+                        borderRadius: "4px",
+                        border: "none",
+                        padding: "8px 16px",
+                        height: "auto",
+                        ":hover": {
+                          backgroundColor: "#106ebe"
+                        }
+                      }
+                    }}
+                  />
+                )}
+                <IconButton
+                  iconProps={{ iconName: "ChromeClose" }}
+                  onClick={() => {
+                    setShowMeetingDetails(false);
+                    setSelectedMeeting(null);
+                  }}
+                  title="Close"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Status</label>
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(selectedMeeting.status)}`}>
-                {selectedMeeting.status}
-              </span>
+
+            {/* Modal Content */}
+            <div style={{ 
+              flex: 1, 
+              display: "flex", 
+              overflow: "hidden" 
+            }}>
+              {/* Meeting Details - Left Side */}
+              <div style={{
+                flex: 1,
+                padding: "24px",
+                overflowY: "auto",
+                borderRight: "1px solid #edebe9"
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        Type
+                      </label>
+                      <p style={{ 
+                        margin: 0, 
+                        fontSize: "14px", 
+                        color: "#323130",
+                        textTransform: "capitalize"
+                      }}>
+                        {selectedMeeting.meetingType.replace('_', ' ')}
+                      </p>
+                    </div>
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        Status
+                      </label>
+                      <span style={{
+                        display: "inline-block",
+                        padding: "4px 8px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        borderRadius: "12px",
+                        backgroundColor: getStatusColor(selectedMeeting.status).includes('green') ? '#dff6dd' : 
+                                        getStatusColor(selectedMeeting.status).includes('blue') ? '#deecf9' : '#fef7e0',
+                        color: getStatusColor(selectedMeeting.status).includes('green') ? '#107c10' : 
+                               getStatusColor(selectedMeeting.status).includes('blue') ? '#0078d4' : '#8a8886'
+                      }}>
+                        {selectedMeeting.status}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        Start Time
+                      </label>
+                      <p style={{ margin: 0, fontSize: "14px", color: "#323130" }}>
+                        {formatDate(selectedMeeting.startTime)} at {formatTime(selectedMeeting.startTime)}
+                      </p>
+                    </div>
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        End Time
+                      </label>
+                      <p style={{ margin: 0, fontSize: "14px", color: "#323130" }}>
+                        {formatDate(selectedMeeting.endTime)} at {formatTime(selectedMeeting.endTime)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {selectedMeeting.location && (
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        Location
+                      </label>
+                      <p style={{ margin: 0, fontSize: "14px", color: "#323130" }}>
+                        {selectedMeeting.location}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {selectedMeeting.meetingUrl && (
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        Meeting URL
+                      </label>
+                      <a 
+                        href={selectedMeeting.meetingUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        style={{ 
+                          fontSize: "14px", 
+                          color: "#0078d4", 
+                          textDecoration: "none"
+                        }}
+                        onMouseEnter={(e) => (e.target as HTMLElement).style.textDecoration = "underline"}
+                        onMouseLeave={(e) => (e.target as HTMLElement).style.textDecoration = "none"}
+                      >
+                        {selectedMeeting.meetingUrl}
+                      </a>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label style={{ 
+                      display: "block", 
+                      fontSize: "12px", 
+                      fontWeight: 600, 
+                      color: "#605e5c", 
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px"
+                    }}>
+                      Attendees
+                    </label>
+                    <div style={{ fontSize: "14px", color: "#323130" }}>
+                      {selectedMeeting.attendees.map((attendee, index) => (
+                        <div key={index} style={{ marginBottom: "4px" }}>
+                          {attendee.name} ({attendee.address})
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {selectedMeeting.description && (
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        Description
+                      </label>
+                      <p style={{ margin: 0, fontSize: "14px", color: "#323130", lineHeight: "1.5" }}>
+                        {selectedMeeting.description}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {selectedMeeting.agenda && (
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        Agenda
+                      </label>
+                      <pre style={{ 
+                        margin: 0, 
+                        fontSize: "14px", 
+                        color: "#323130", 
+                        whiteSpace: "pre-wrap",
+                        fontFamily: "inherit",
+                        lineHeight: "1.5",
+                        backgroundColor: "#f8f8f8",
+                        padding: "12px",
+                        borderRadius: "4px",
+                        border: "1px solid #edebe9"
+                      }}>
+                        {selectedMeeting.agenda}
+                      </pre>
+                    </div>
+                  )}
+                  
+                  {selectedMeeting.notes && (
+                    <div>
+                      <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 600, 
+                        color: "#605e5c", 
+                        marginBottom: "4px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px"
+                      }}>
+                        Notes
+                      </label>
+                      <p style={{ margin: 0, fontSize: "14px", color: "#323130", lineHeight: "1.5" }}>
+                        {selectedMeeting.notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* AI Panel - Right Side */}
+              {isAIPanelOpen && (
+                <div style={{
+                  width: "400px",
+                  minWidth: "350px",
+                  backgroundColor: "#ffffff",
+                  borderLeft: "1px solid #edebe9",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden"
+                }}>
+                  {/* AI Panel Content */}
+                  <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                    <AssistantPanel
+                      email={null}
+                      defaultOpen={true}
+                      onCollapse={() => {
+                        setIsAIPanelOpen(false);
+                      }}
+                      communications={getCommunicationsForMeeting()}
+                      clientEmail={getClientInfo(selectedMeeting)?.email}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Start Time</label>
-                <p className="text-sm text-gray-900">{formatDate(selectedMeeting.startTime)} at {formatTime(selectedMeeting.startTime)}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">End Time</label>
-                <p className="text-sm text-gray-900">{formatDate(selectedMeeting.endTime)} at {formatTime(selectedMeeting.endTime)}</p>
-              </div>
-            </div>
-            
-            {selectedMeeting.location && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Location</label>
-                <p className="text-sm text-gray-900">{selectedMeeting.location}</p>
-              </div>
-            )}
-            
-            {selectedMeeting.meetingUrl && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Meeting URL</label>
-                <a href={selectedMeeting.meetingUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800">
-                  {selectedMeeting.meetingUrl}
-                </a>
-              </div>
-            )}
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Attendees</label>
-              <div className="text-sm text-gray-900">
-                {selectedMeeting.attendees.map((attendee, index) => (
-                  <div key={index}>{attendee.name} ({attendee.address})</div>
-                ))}
-              </div>
-            </div>
-            
-            {selectedMeeting.description && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Description</label>
-                <p className="text-sm text-gray-900">{selectedMeeting.description}</p>
-              </div>
-            )}
-            
-            {selectedMeeting.agenda && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Agenda</label>
-                <pre className="text-sm text-gray-900 whitespace-pre-wrap">{selectedMeeting.agenda}</pre>
-              </div>
-            )}
-            
-            {selectedMeeting.notes && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Notes</label>
-                <p className="text-sm text-gray-900">{selectedMeeting.notes}</p>
-              </div>
-            )}
-            
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setShowMeetingDetails(false);
-                  setSelectedMeeting(null);
-                }}
-              >
-                Close
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setShowMeetingDetails(false);
-                  setSelectedMeeting(null);
-                  handleAIPanelToggle(true);
-                }}
-              >
-                Analyze with AI
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+        </div>
+      )}
 
       {/* Smart Meeting Scheduler */}
       {showSmartScheduler && (
