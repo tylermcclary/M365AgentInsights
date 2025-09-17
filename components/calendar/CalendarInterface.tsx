@@ -413,7 +413,11 @@ export default function CalendarInterface({
                 items={filteredMeetings}
                 columns={meetingColumns}
                 selectionMode={SelectionMode.none}
-                onItemInvoked={(item) => handleMeetingSelect(item)}
+                onActiveItemChanged={(item) => {
+                  if (item) {
+                    handleMeetingSelect(item);
+                  }
+                }}
                 styles={{
                   root: {
                     flex: 1,
